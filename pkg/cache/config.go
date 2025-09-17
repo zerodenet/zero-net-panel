@@ -4,8 +4,8 @@ import "time"
 
 type Config struct {
 	Provider string       `json:"provider" yaml:"Provider"`
-	Redis    RedisConfig  `json:"redis" yaml:"Redis"`
-	Memory   MemoryConfig `json:"memory" yaml:"Memory"`
+	Redis    RedisConfig  `json:"redis,optional" yaml:"Redis,optional"`
+	Memory   MemoryConfig `json:"memory,optional" yaml:"Memory,optional"`
 }
 
 type RedisConfig struct {

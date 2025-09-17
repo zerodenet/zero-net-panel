@@ -8,6 +8,7 @@ import (
 
 	"github.com/zero-net-panel/zero-net-panel/internal/config"
 	"github.com/zero-net-panel/zero-net-panel/internal/repository"
+	"github.com/zero-net-panel/zero-net-panel/pkg/auth"
 	"github.com/zero-net-panel/zero-net-panel/pkg/cache"
 	"github.com/zero-net-panel/zero-net-panel/pkg/database"
 	"github.com/zero-net-panel/zero-net-panel/pkg/kernel"
@@ -19,6 +20,7 @@ type ServiceContext struct {
 	Cache        cache.Cache
 	Repositories *repository.Repositories
 	Kernel       *kernel.Registry
+	Auth         *auth.Generator
 
 	Ctx    context.Context
 	cancel context.CancelFunc
@@ -63,12 +65,20 @@ func NewServiceContext(c config.Config) (*ServiceContext, error) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 
+	authGenerator := auth.NewGenerator(
+		c.Auth.AccessSecret,
+		c.Auth.RefreshSecret,
+		c.Auth.AccessExpire,
+		c.Auth.RefreshExpire,
+	)
+
 	svcCtx := &ServiceContext{
 		Config:       c,
 		DB:           db,
 		Cache:        cacheProvider,
 		Repositories: repos,
 		Kernel:       kernelRegistry,
+		Auth:         authGenerator,
 		Ctx:          ctx,
 		cancel:       cancel,
 	}

@@ -38,6 +38,12 @@ Zero Network Panel 旨在以 xboard 的功能体系为基线，提供面向节�
    ```
 3. 访问健康检查：`GET http://localhost:8888/api/v1/ping`
 
+### 默认账户
+- 管理员：`admin@example.com` / `P@ssw0rd!`
+- 高级会员：`user@example.com` / `P@ssw0rd!`
+
+登录成功后可取得访问令牌（Bearer Token），用于访问 `/api/v1/admin` 与 `/api/v1/user` 下的受保护接口。
+
 ## 开发工具
 - Go 1.21+
 - go-zero 1.5+

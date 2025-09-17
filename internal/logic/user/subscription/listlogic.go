@@ -6,11 +6,10 @@ import (
 	"github.com/zeromicro/go-zero/core/logx"
 
 	"github.com/zero-net-panel/zero-net-panel/internal/repository"
+	"github.com/zero-net-panel/zero-net-panel/internal/security"
 	"github.com/zero-net-panel/zero-net-panel/internal/svc"
 	"github.com/zero-net-panel/zero-net-panel/internal/types"
 )
-
-const defaultUserID uint64 = 1
 
 // ListLogic 查询用户订阅列表。
 type ListLogic struct {
@@ -30,7 +29,10 @@ func NewListLogic(ctx context.Context, svcCtx *svc.ServiceContext) *ListLogic {
 
 // List 返回订阅列表。
 func (l *ListLogic) List(req *types.UserListSubscriptionsRequest) (*types.UserSubscriptionListResponse, error) {
-	userID := resolveUserID(l.ctx)
+	user, ok := security.UserFromContext(l.ctx)
+	if !ok {
+		return nil, repository.ErrForbidden
+	}
 
 	opts := repository.ListSubscriptionsOptions{
 		Page:      req.Page,
@@ -41,7 +43,7 @@ func (l *ListLogic) List(req *types.UserListSubscriptionsRequest) (*types.UserSu
 		Status:    req.Status,
 	}
 
-	subs, total, err := l.svcCtx.Repositories.Subscription.ListByUser(l.ctx, userID, opts)
+	subs, total, err := l.svcCtx.Repositories.Subscription.ListByUser(l.ctx, user.ID, opts)
 	if err != nil {
 		return nil, err
 	}
@@ -77,9 +79,4 @@ func normalizePage(page, perPage int) (int, int) {
 		perPage = 100
 	}
 	return page, perPage
-}
-
-func resolveUserID(ctx context.Context) uint64 {
-	// TODO: 从鉴权上下文提取用户信息，目前使用默认用户便于联调。
-	return defaultUserID
 }

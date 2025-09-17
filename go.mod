@@ -5,6 +5,7 @@ go 1.21
 require (
 	github.com/golang-jwt/jwt/v5 v5.3.0
 	github.com/zeromicro/go-zero v1.5.3
+	google.golang.org/grpc v1.55.0
 	gorm.io/driver/mysql v1.5.4
 	gorm.io/driver/postgres v1.5.5
 	gorm.io/gorm v1.25.7
@@ -55,7 +56,6 @@ require (
 	golang.org/x/sys v0.18.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
 	google.golang.org/genproto v0.0.0-20230306155012-7f2fa6fef1f4 // indirect
-	google.golang.org/grpc v1.55.0 // indirect
 	google.golang.org/protobuf v1.32.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 )

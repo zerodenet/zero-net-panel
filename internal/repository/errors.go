@@ -7,4 +7,5 @@ var (
 	ErrConflict        = errors.New("repository: conflict")
 	ErrInvalidArgument = errors.New("repository: invalid argument")
 	ErrForbidden       = errors.New("repository: forbidden")
+	ErrUnauthorized    = errors.New("repository: unauthorized")
 )

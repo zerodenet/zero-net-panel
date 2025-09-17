@@ -93,7 +93,7 @@ func (r *subscriptionRepository) seed() {
 		Name:                 "VIP 全球高速",
 		PlanName:             "VIP-Plus",
 		Status:               "active",
-		UserID:               1,
+		UserID:               2,
 		TemplateID:           defaultTemplate,
 		AvailableTemplateIDs: allowed,
 		Token:                "demo-token-123",

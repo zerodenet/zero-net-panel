@@ -6,6 +6,8 @@ import (
 
 	"github.com/zeromicro/go-zero/core/logx"
 
+	"github.com/zero-net-panel/zero-net-panel/internal/repository"
+	"github.com/zero-net-panel/zero-net-panel/internal/security"
 	"github.com/zero-net-panel/zero-net-panel/internal/svc"
 	"github.com/zero-net-panel/zero-net-panel/internal/types"
 )
@@ -28,9 +30,12 @@ func NewUpdateTemplateLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Up
 
 // UpdateTemplate 调整用户订阅模板。
 func (l *UpdateTemplateLogic) UpdateTemplate(req *types.UserUpdateSubscriptionTemplateRequest) (*types.UserUpdateSubscriptionTemplateResponse, error) {
-	userID := resolveUserID(l.ctx)
+	user, ok := security.UserFromContext(l.ctx)
+	if !ok {
+		return nil, repository.ErrForbidden
+	}
 
-	sub, err := l.svcCtx.Repositories.Subscription.UpdateTemplate(l.ctx, req.SubscriptionID, req.TemplateID, userID)
+	sub, err := l.svcCtx.Repositories.Subscription.UpdateTemplate(l.ctx, req.SubscriptionID, req.TemplateID, user.ID)
 	if err != nil {
 		return nil, err
 	}

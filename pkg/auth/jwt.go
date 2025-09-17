@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"errors"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -26,6 +27,9 @@ type Generator struct {
 	accessTTL     time.Duration
 	refreshTTL    time.Duration
 }
+
+// ErrInvalidToken 用于指示令牌解析失败或已失效。
+var ErrInvalidToken = errors.New("auth: invalid token")
 
 func NewGenerator(accessSecret, refreshSecret string, accessTTL, refreshTTL time.Duration) *Generator {
 	return &Generator{
@@ -79,4 +83,36 @@ func (g *Generator) GenerateTokenPair(userID string, roles []string, audience st
 		AccessExpire:  now.Add(g.accessTTL),
 		RefreshExpire: now.Add(g.refreshTTL),
 	}, nil
+}
+
+// ParseAccessToken 校验并解析访问令牌。
+func (g *Generator) ParseAccessToken(token string) (*Claims, error) {
+	return g.parseToken(token, g.accessSecret)
+}
+
+// ParseRefreshToken 校验并解析刷新令牌。
+func (g *Generator) ParseRefreshToken(token string) (*Claims, error) {
+	return g.parseToken(token, g.refreshSecret)
+}
+
+func (g *Generator) parseToken(token string, secret []byte) (*Claims, error) {
+	if token == "" {
+		return nil, ErrInvalidToken
+	}
+
+	claims := &Claims{}
+	parsedToken, err := jwt.ParseWithClaims(token, claims, func(t *jwt.Token) (any, error) {
+		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, ErrInvalidToken
+		}
+		return secret, nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	if !parsedToken.Valid {
+		return nil, ErrInvalidToken
+	}
+
+	return claims, nil
 }
