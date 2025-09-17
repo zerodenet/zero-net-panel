@@ -1,0 +1,277 @@
+syntax = "v1"
+
+info(
+    title: "Zero Network Panel API",
+    desc: "Backend API aligned with xboard capabilities and GitHub 风格 REST 设计。",
+    author: "ZNP Team"
+)
+
+@server(
+    name: znp.api,
+    prefix: /api/v1
+)
+service znp {
+    @doc "Service health check"
+    @handler Ping
+    get /ping() returns (PingResponse)
+
+    @doc "List edge nodes"
+    @handler AdminListNodes
+    get /admin/nodes(AdminListNodesRequest) returns (AdminNodeListResponse)
+
+    @doc "Get node kernel endpoints"
+    @handler AdminNodeKernels
+    get /admin/nodes/:id/kernels(AdminNodeKernelPath) returns (AdminNodeKernelResponse)
+
+    @doc "Sync node kernel configuration"
+    @handler AdminSyncNodeKernel
+    post /admin/nodes/:id/kernels/sync(AdminSyncNodeKernelRequest) returns (AdminSyncNodeKernelResponse)
+
+    @doc "List subscription templates"
+    @handler AdminListSubscriptionTemplates
+    get /admin/subscription-templates(AdminListSubscriptionTemplatesRequest) returns (AdminSubscriptionTemplateListResponse)
+
+    @doc "Create subscription template"
+    @handler AdminCreateSubscriptionTemplate
+    post /admin/subscription-templates(AdminCreateSubscriptionTemplateRequest) returns (SubscriptionTemplateSummary)
+
+    @doc "Update subscription template"
+    @handler AdminUpdateSubscriptionTemplate
+    patch /admin/subscription-templates/:id(AdminUpdateSubscriptionTemplateRequest) returns (SubscriptionTemplateSummary)
+
+    @doc "Publish subscription template"
+    @handler AdminPublishSubscriptionTemplate
+    post /admin/subscription-templates/:id/publish(AdminPublishSubscriptionTemplateRequest) returns (AdminPublishSubscriptionTemplateResponse)
+
+    @doc "List template publish history"
+    @handler AdminSubscriptionTemplateHistory
+    get /admin/subscription-templates/:id/history(AdminSubscriptionTemplateHistoryRequest) returns (AdminSubscriptionTemplateHistoryResponse)
+
+    @doc "List user subscriptions"
+    @handler UserListSubscriptions
+    get /user/subscriptions(UserListSubscriptionsRequest) returns (UserSubscriptionListResponse)
+
+    @doc "Preview user subscription"
+    @handler UserSubscriptionPreview
+    get /user/subscriptions/:id/preview(UserSubscriptionPreviewRequest) returns (UserSubscriptionPreviewResponse)
+
+    @doc "Update user subscription template"
+    @handler UserUpdateSubscriptionTemplate
+    post /user/subscriptions/:id/template(UserUpdateSubscriptionTemplateRequest) returns (UserUpdateSubscriptionTemplateResponse)
+}
+
+type PingResponse {
+    status string
+    service string
+    version string
+    timestamp int64
+}
+
+type PaginationMeta {
+    page int
+    per_page int
+    total_count int64
+    has_next bool
+    has_prev bool
+}
+
+type AdminListNodesRequest {
+    page int(optional)
+    per_page int(optional)
+    sort string(optional)
+    direction string(optional)
+    q string(optional)
+    status string(optional)
+    protocol string(optional)
+}
+
+type NodeSummary {
+    id uint64
+    name string
+    region string
+    country string
+    isp string
+    status string
+    tags []string
+    protocols []string
+    capacity_mbps int
+    description string
+    last_synced_at int64
+    updated_at int64
+}
+
+type AdminNodeListResponse {
+    nodes []NodeSummary
+    pagination PaginationMeta
+}
+
+type AdminNodeKernelPath {
+    id uint64
+}
+
+type NodeKernelSummary {
+    protocol string
+    endpoint string
+    revision string
+    status string
+    config map[string]any
+    last_synced_at int64
+}
+
+type AdminNodeKernelResponse {
+    node_id uint64
+    kernels []NodeKernelSummary
+}
+
+type AdminSyncNodeKernelRequest {
+    id uint64
+    protocol string(optional)
+}
+
+type AdminSyncNodeKernelResponse {
+    node_id uint64
+    protocol string
+    revision string
+    synced_at int64
+    message string
+}
+
+type TemplateVariable {
+    type string
+    required bool
+    description string
+    default any(optional)
+}
+
+type AdminListSubscriptionTemplatesRequest {
+    page int(optional)
+    per_page int(optional)
+    sort string(optional)
+    direction string(optional)
+    q string(optional)
+    client_type string(optional)
+    format string(optional)
+    include_drafts bool(optional)
+}
+
+type SubscriptionTemplateSummary {
+    id uint64
+    name string
+    description string
+    client_type string
+    format string
+    content string(optional)
+    variables map[string]TemplateVariable
+    is_default bool
+    version uint32
+    updated_at int64
+    published_at int64
+    last_published_by string
+}
+
+type AdminSubscriptionTemplateListResponse {
+    templates []SubscriptionTemplateSummary
+    pagination PaginationMeta
+}
+
+type AdminCreateSubscriptionTemplateRequest {
+    name string
+    description string(optional)
+    client_type string
+    format string(optional)
+    content string
+    variables map[string]TemplateVariable(optional)
+    is_default bool(optional)
+}
+
+type AdminUpdateSubscriptionTemplateRequest {
+    id uint64
+    name string(optional)
+    description string(optional)
+    format string(optional)
+    content string(optional)
+    variables map[string]TemplateVariable(optional)
+    is_default bool(optional)
+}
+
+type AdminPublishSubscriptionTemplateRequest {
+    id uint64
+    changelog string(optional)
+    operator string(optional)
+}
+
+type SubscriptionTemplateHistoryEntry {
+    version uint32
+    changelog string
+    published_at int64
+    published_by string
+    variables map[string]TemplateVariable
+}
+
+type AdminPublishSubscriptionTemplateResponse {
+    template SubscriptionTemplateSummary
+    history SubscriptionTemplateHistoryEntry
+}
+
+type AdminSubscriptionTemplateHistoryRequest {
+    id uint64
+}
+
+type AdminSubscriptionTemplateHistoryResponse {
+    template_id uint64
+    history []SubscriptionTemplateHistoryEntry
+}
+
+type UserListSubscriptionsRequest {
+    page int(optional)
+    per_page int(optional)
+    sort string(optional)
+    direction string(optional)
+    q string(optional)
+    status string(optional)
+}
+
+type UserSubscriptionSummary {
+    id uint64
+    name string
+    plan_name string
+    status string
+    template_id uint64
+    available_template_ids []uint64
+    expires_at int64
+    traffic_total_bytes int64
+    traffic_used_bytes int64
+    devices_limit int
+    last_refreshed_at int64
+}
+
+type UserSubscriptionListResponse {
+    subscriptions []UserSubscriptionSummary
+    pagination PaginationMeta
+}
+
+type UserSubscriptionPreviewRequest {
+    id uint64
+    template_id uint64(optional)
+}
+
+type UserSubscriptionPreviewResponse {
+    subscription_id uint64
+    template_id uint64
+    content string
+    content_type string
+    etag string
+    generated_at int64
+}
+
+type UserUpdateSubscriptionTemplateRequest {
+    id uint64
+    template_id uint64
+}
+
+type UserUpdateSubscriptionTemplateResponse {
+    subscription_id uint64
+    template_id uint64
+    updated_at int64
+}
+
