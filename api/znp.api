@@ -1,0 +1,23 @@
+syntax = "v1"
+
+info(
+    title: "Zero Network Panel API",
+    desc: "Backend API specification aligned with xboard capabilities.",
+    author: "ZNP Team"
+)
+
+@server(
+    name: znp.api,
+    prefix: /api/v1
+)
+service znp {
+    @doc "Service health check"
+    get /ping() returns (PingResponse)
+}
+
+type PingResponse {
+    status string
+    service string
+    version string
+    timestamp int64
+}
