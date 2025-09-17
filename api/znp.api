@@ -14,7 +14,7 @@ service znp {
     @doc "Service health check"
     @handler Ping
     get /ping() returns (PingResponse)
-
+ 
     @doc "Authenticate user and issue token"
     @handler AuthLogin
     post /auth/login(AuthLoginRequest) returns (AuthLoginResponse)

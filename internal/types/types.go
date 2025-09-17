@@ -63,10 +63,10 @@ type AdminListNodesRequest struct {
         Page      int    `form:"page"`
         PerPage   int    `form:"per_page"`
         Sort      string `form:"sort"`
-	Direction string `form:"direction"`
-	Query     string `form:"q"`
-	Status    string `form:"status"`
-	Protocol  string `form:"protocol"`
+        Direction string `form:"direction"`
+        Query     string `form:"q"`
+        Status    string `form:"status"`
+        Protocol  string `form:"protocol"`
 }
 
 // NodeSummary 节点摘要信息。

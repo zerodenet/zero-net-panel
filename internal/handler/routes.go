@@ -11,7 +11,6 @@ import (
 
 func RegisterHandlers(server *rest.Server, svcCtx *svc.ServiceContext) {
 	authMiddleware := middleware.NewAuthMiddleware(svcCtx.Auth, svcCtx.Repositories.User)
-
 	server.AddRoutes(
 		[]rest.Route{
 			{
