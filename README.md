@@ -36,7 +36,7 @@ Zero Network Panel 旨在以 xboard 的功能体系为基线，提供面向节�
 ## 项目结构
 ```
 .
-├── api/                  # go-zero API 定义
+├── api/                  # go-zero API 定义（按 shared/auth/admin/user 模块拆分）
 ├── cmd/api/              # HTTP 服务入口
 ├── etc/                  # 服务配置示例
 ├── internal/             # 业务代码（config/handler/logic/svc/types）
@@ -45,6 +45,19 @@ Zero Network Panel 旨在以 xboard 的功能体系为基线，提供面向节�
 ├── migrations/           # 数据库迁移脚本占位
 └── .github/workflows/    # CI 配置
 ```
+
+### API 定义与代码生成
+
+API 入口文件位于 `api/znp.api`，该文件通过 `import` 聚合 `api/shared/*.api`、`api/auth/*.api`、`api/admin/*.api`、`api/user/*.api` 等领域定义，便于按模块维护路由、请求/响应结构与复用类型。
+
+使用 [goctl](https://go-zero.dev/docs/goctl/)（1.5+）即可一次性解析上述多文件结构，并输出 `internal/handler`、`internal/logic`、`internal/types` 等目录中的模板代码。项目内提供脚本帮助开发者统一执行：
+
+```bash
+./scripts/gen-api.sh            # 默认读取 api/znp.api 并输出到 internal/
+./scripts/gen-api.sh api/znp.api build/internal  # 自定义输出目录
+```
+
+脚本会先运行 `goctl api format -dir api` 对全部 `.api` 文件进行格式化，然后使用 `goctl api go` 生成最新的 handler/logic/types 代码。生成后请根据实际业务手动调整逻辑层实现，并执行 `go fmt` 与测试校验。
 
 ## 快速启动
 1. 选择配置文件（示例提供 `etc/znp-sqlite.yaml` 便于本地使用 SQLite）。

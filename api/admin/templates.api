@@ -1,0 +1,116 @@
+syntax = "v1"
+
+import "shared/types.api"
+
+@server (
+    name: znp.api
+    prefix: /api/v1
+    group: admin/templates
+)
+service znp {
+    @doc "List subscription templates"
+    @handler AdminListSubscriptionTemplates
+    get /admin/subscription-templates(AdminListSubscriptionTemplatesRequest) returns (AdminSubscriptionTemplateListResponse)
+
+    @doc "Create subscription template"
+    @handler AdminCreateSubscriptionTemplate
+    post /admin/subscription-templates(AdminCreateSubscriptionTemplateRequest) returns (SubscriptionTemplateSummary)
+
+    @doc "Update subscription template"
+    @handler AdminUpdateSubscriptionTemplate
+    patch /admin/subscription-templates/:id(AdminUpdateSubscriptionTemplateRequest) returns (SubscriptionTemplateSummary)
+
+    @doc "Publish subscription template"
+    @handler AdminPublishSubscriptionTemplate
+    post /admin/subscription-templates/:id/publish(AdminPublishSubscriptionTemplateRequest) returns (AdminPublishSubscriptionTemplateResponse)
+
+    @doc "List template publish history"
+    @handler AdminSubscriptionTemplateHistory
+    get /admin/subscription-templates/:id/history(AdminSubscriptionTemplateHistoryRequest) returns (AdminSubscriptionTemplateHistoryResponse)
+}
+
+type TemplateVariable {
+    type string
+    required bool
+    description string
+    default any(optional)
+}
+
+type AdminListSubscriptionTemplatesRequest {
+    page int(optional)
+    per_page int(optional)
+    sort string(optional)
+    direction string(optional)
+    q string(optional)
+    client_type string(optional)
+    format string(optional)
+    include_drafts bool(optional)
+}
+
+type SubscriptionTemplateSummary {
+    id uint64
+    name string
+    description string
+    client_type string
+    format string
+    content string(optional)
+    variables map[string]TemplateVariable
+    is_default bool
+    version uint32
+    updated_at int64
+    published_at int64
+    last_published_by string
+}
+
+type AdminSubscriptionTemplateListResponse {
+    templates []SubscriptionTemplateSummary
+    pagination PaginationMeta
+}
+
+type AdminCreateSubscriptionTemplateRequest {
+    name string
+    description string(optional)
+    client_type string
+    format string(optional)
+    content string
+    variables map[string]TemplateVariable(optional)
+    is_default bool(optional)
+}
+
+type AdminUpdateSubscriptionTemplateRequest {
+    id uint64
+    name string(optional)
+    description string(optional)
+    format string(optional)
+    content string(optional)
+    variables map[string]TemplateVariable(optional)
+    is_default bool(optional)
+}
+
+type AdminPublishSubscriptionTemplateRequest {
+    id uint64
+    changelog string(optional)
+    operator string(optional)
+}
+
+type SubscriptionTemplateHistoryEntry {
+    version uint32
+    changelog string
+    published_at int64
+    published_by string
+    variables map[string]TemplateVariable
+}
+
+type AdminPublishSubscriptionTemplateResponse {
+    template SubscriptionTemplateSummary
+    history SubscriptionTemplateHistoryEntry
+}
+
+type AdminSubscriptionTemplateHistoryRequest {
+    id uint64
+}
+
+type AdminSubscriptionTemplateHistoryResponse {
+    template_id uint64
+    history []SubscriptionTemplateHistoryEntry
+}

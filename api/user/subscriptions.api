@@ -1,0 +1,75 @@
+syntax = "v1"
+
+import "shared/types.api"
+
+@server (
+    name: znp.api
+    prefix: /api/v1
+    group: user/subscriptions
+)
+service znp {
+    @doc "List user subscriptions"
+    @handler UserListSubscriptions
+    get /user/subscriptions(UserListSubscriptionsRequest) returns (UserSubscriptionListResponse)
+
+    @doc "Preview user subscription"
+    @handler UserSubscriptionPreview
+    get /user/subscriptions/:id/preview(UserSubscriptionPreviewRequest) returns (UserSubscriptionPreviewResponse)
+
+    @doc "Update user subscription template"
+    @handler UserUpdateSubscriptionTemplate
+    post /user/subscriptions/:id/template(UserUpdateSubscriptionTemplateRequest) returns (UserUpdateSubscriptionTemplateResponse)
+}
+
+type UserListSubscriptionsRequest {
+    page int(optional)
+    per_page int(optional)
+    sort string(optional)
+    direction string(optional)
+    q string(optional)
+    status string(optional)
+}
+
+type UserSubscriptionSummary {
+    id uint64
+    name string
+    plan_name string
+    status string
+    template_id uint64
+    available_template_ids []uint64
+    expires_at int64
+    traffic_total_bytes int64
+    traffic_used_bytes int64
+    devices_limit int
+    last_refreshed_at int64
+}
+
+type UserSubscriptionListResponse {
+    subscriptions []UserSubscriptionSummary
+    pagination PaginationMeta
+}
+
+type UserSubscriptionPreviewRequest {
+    id uint64
+    template_id uint64(optional)
+}
+
+type UserSubscriptionPreviewResponse {
+    subscription_id uint64
+    template_id uint64
+    content string
+    content_type string
+    etag string
+    generated_at int64
+}
+
+type UserUpdateSubscriptionTemplateRequest {
+    id uint64
+    template_id uint64
+}
+
+type UserUpdateSubscriptionTemplateResponse {
+    subscription_id uint64
+    template_id uint64
+    updated_at int64
+}

@@ -1,29 +1,30 @@
-package handler
+package auth
 
 import (
 	"net/http"
 
 	"github.com/zeromicro/go-zero/rest/httpx"
 
+	handlercommon "github.com/zero-net-panel/zero-net-panel/internal/handler/common"
 	authlogic "github.com/zero-net-panel/zero-net-panel/internal/logic/auth"
 	"github.com/zero-net-panel/zero-net-panel/internal/repository"
 	"github.com/zero-net-panel/zero-net-panel/internal/svc"
 	"github.com/zero-net-panel/zero-net-panel/internal/types"
 )
 
-// AuthLoginHandler 处理登录请求。
-func AuthLoginHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
+// AuthRefreshHandler issues refreshed access tokens when the refresh token is valid.
+func AuthRefreshHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var req types.AuthLoginRequest
+		var req types.AuthRefreshRequest
 		if err := httpx.Parse(r, &req); err != nil {
-			respondError(w, r, repository.ErrInvalidArgument)
+			handlercommon.RespondError(w, r, repository.ErrInvalidArgument)
 			return
 		}
 
-		logic := authlogic.NewLoginLogic(r.Context(), svcCtx)
-		resp, err := logic.Login(&req)
+		logic := authlogic.NewRefreshLogic(r.Context(), svcCtx)
+		resp, err := logic.Refresh(&req)
 		if err != nil {
-			respondError(w, r, err)
+			handlercommon.RespondError(w, r, err)
 			return
 		}
 

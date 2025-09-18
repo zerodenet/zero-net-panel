@@ -1,0 +1,89 @@
+syntax = "v1"
+
+import "shared/types.api"
+
+@server (
+    name: znp.api
+    prefix: /api/v1
+    group: admin/plans
+)
+service znp {
+    @doc "List subscription plans"
+    @handler AdminListPlans
+    get /admin/plans(AdminListPlansRequest) returns (AdminPlanListResponse)
+
+    @doc "Create subscription plan"
+    @handler AdminCreatePlan
+    post /admin/plans(AdminCreatePlanRequest) returns (PlanSummary)
+
+    @doc "Update subscription plan"
+    @handler AdminUpdatePlan
+    patch /admin/plans/:id(AdminUpdatePlanRequest) returns (PlanSummary)
+}
+
+type AdminListPlansRequest {
+    page int(optional)
+    per_page int(optional)
+    sort string(optional)
+    direction string(optional)
+    q string(optional)
+    status string(optional)
+    visible bool(optional)
+}
+
+type AdminCreatePlanRequest {
+    name string
+    slug string(optional)
+    description string(optional)
+    tags []string(optional)
+    features []string(optional)
+    price_cents int64
+    currency string
+    duration_days int
+    traffic_limit_bytes int64(optional)
+    devices_limit int(optional)
+    sort_order int(optional)
+    status string(optional)
+    visible bool(optional)
+}
+
+type AdminUpdatePlanRequest {
+    id uint64
+    name string(optional)
+    slug string(optional)
+    description string(optional)
+    tags []string(optional)
+    features []string(optional)
+    price_cents int64(optional)
+    currency string(optional)
+    duration_days int(optional)
+    traffic_limit_bytes int64(optional)
+    devices_limit int(optional)
+    sort_order int(optional)
+    status string(optional)
+    visible bool(optional)
+}
+
+type PlanSummary {
+    id uint64
+    name string
+    slug string
+    description string
+    tags []string
+    features []string
+    price_cents int64
+    currency string
+    duration_days int
+    traffic_limit_bytes int64
+    devices_limit int
+    sort_order int
+    status string
+    visible bool
+    created_at int64
+    updated_at int64
+}
+
+type AdminPlanListResponse {
+    plans []PlanSummary
+    pagination PaginationMeta
+}

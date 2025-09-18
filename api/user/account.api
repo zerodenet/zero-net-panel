@@ -1,0 +1,29 @@
+syntax = "v1"
+
+import "shared/types.api"
+
+@server (
+    name: znp.api
+    prefix: /api/v1
+    group: user/account
+)
+service znp {
+    @doc "Get user balance"
+    @handler UserBalance
+    get /user/account/balance(UserBalanceRequest) returns (UserBalanceResponse)
+}
+
+type UserBalanceRequest {
+    page int(optional)
+    per_page int(optional)
+    type string(optional)
+}
+
+type UserBalanceResponse {
+    user_id uint64
+    balance_cents int64
+    currency string
+    updated_at int64
+    transactions []BalanceTransactionSummary
+    pagination PaginationMeta
+}

@@ -1,0 +1,33 @@
+syntax = "v1"
+
+@server (
+    name: znp.api
+    prefix: /api/v1
+    group: user/plans
+)
+service znp {
+    @doc "List available plans"
+    @handler UserListPlans
+    get /user/plans(UserPlanListRequest) returns (UserPlanListResponse)
+}
+
+type UserPlanListRequest {
+    q string(optional)
+}
+
+type UserPlanSummary {
+    id uint64
+    name string
+    description string
+    features []string
+    price_cents int64
+    currency string
+    duration_days int
+    traffic_limit_bytes int64
+    devices_limit int
+    tags []string
+}
+
+type UserPlanListResponse {
+    plans []UserPlanSummary
+}

@@ -1,22 +1,24 @@
-package handler
+package security
 
 import (
 	"net/http"
 
 	"github.com/zeromicro/go-zero/rest/httpx"
 
+	handlercommon "github.com/zero-net-panel/zero-net-panel/internal/handler/common"
 	securitylogic "github.com/zero-net-panel/zero-net-panel/internal/logic/admin/security"
+	"github.com/zero-net-panel/zero-net-panel/internal/repository"
 	"github.com/zero-net-panel/zero-net-panel/internal/svc"
 	"github.com/zero-net-panel/zero-net-panel/internal/types"
 )
 
-// AdminGetSecuritySettingHandler 查询第三方安全配置。
+// AdminGetSecuritySettingHandler returns the third-party security configuration snapshot.
 func AdminGetSecuritySettingHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		l := securitylogic.NewGetLogic(r.Context(), svcCtx)
-		resp, err := l.Get()
+		logic := securitylogic.NewGetLogic(r.Context(), svcCtx)
+		resp, err := logic.Get()
 		if err != nil {
-			httpx.ErrorCtx(r.Context(), w, err)
+			handlercommon.RespondError(w, r, err)
 			return
 		}
 
@@ -24,19 +26,19 @@ func AdminGetSecuritySettingHandler(svcCtx *svc.ServiceContext) http.HandlerFunc
 	}
 }
 
-// AdminUpdateSecuritySettingHandler 更新第三方安全配置。
+// AdminUpdateSecuritySettingHandler updates API gateway credentials and switches.
 func AdminUpdateSecuritySettingHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req types.AdminUpdateSecuritySettingRequest
 		if err := httpx.Parse(r, &req); err != nil {
-			httpx.ErrorCtx(r.Context(), w, err)
+			handlercommon.RespondError(w, r, repository.ErrInvalidArgument)
 			return
 		}
 
-		l := securitylogic.NewUpdateLogic(r.Context(), svcCtx)
-		resp, err := l.Update(&req)
+		logic := securitylogic.NewUpdateLogic(r.Context(), svcCtx)
+		resp, err := logic.Update(&req)
 		if err != nil {
-			httpx.ErrorCtx(r.Context(), w, err)
+			handlercommon.RespondError(w, r, err)
 			return
 		}
 
