@@ -10,63 +10,78 @@ type PingResponse struct {
 
 // PaginationMeta 统一 GitHub 风格分页返回。
 type PaginationMeta struct {
-        Page       int   `json:"page"`
-        PerPage    int   `json:"per_page"`
-        TotalCount int64 `json:"total_count"`
-        HasNext    bool  `json:"has_next"`
-        HasPrev    bool  `json:"has_prev"`
+	Page       int   `json:"page"`
+	PerPage    int   `json:"per_page"`
+	TotalCount int64 `json:"total_count"`
+	HasNext    bool  `json:"has_next"`
+	HasPrev    bool  `json:"has_prev"`
 }
 
 // AuthLoginRequest 登录请求。
 type AuthLoginRequest struct {
-        Email    string `json:"email"`
-        Password string `json:"password"`
+	Email    string `json:"email"`
+	Password string `json:"password"`
 }
 
 // AuthRefreshRequest 刷新令牌请求。
 type AuthRefreshRequest struct {
-        RefreshToken string `json:"refresh_token"`
+	RefreshToken string `json:"refresh_token"`
 }
 
 // AuthenticatedUser 鉴权用户信息。
 type AuthenticatedUser struct {
-        ID          uint64   `json:"id"`
-        Email       string   `json:"email"`
-        DisplayName string   `json:"display_name"`
-        Roles       []string `json:"roles"`
-        CreatedAt   int64    `json:"created_at"`
-        UpdatedAt   int64    `json:"updated_at"`
+	ID          uint64   `json:"id"`
+	Email       string   `json:"email"`
+	DisplayName string   `json:"display_name"`
+	Roles       []string `json:"roles"`
+	CreatedAt   int64    `json:"created_at"`
+	UpdatedAt   int64    `json:"updated_at"`
 }
 
 // AuthLoginResponse 登录响应。
 type AuthLoginResponse struct {
-        AccessToken       string            `json:"access_token"`
-        RefreshToken      string            `json:"refresh_token"`
-        TokenType         string            `json:"token_type"`
-        ExpiresIn         int64             `json:"expires_in"`
-        RefreshExpiresIn  int64             `json:"refresh_expires_in"`
-        User              AuthenticatedUser `json:"user"`
+	AccessToken      string            `json:"access_token"`
+	RefreshToken     string            `json:"refresh_token"`
+	TokenType        string            `json:"token_type"`
+	ExpiresIn        int64             `json:"expires_in"`
+	RefreshExpiresIn int64             `json:"refresh_expires_in"`
+	User             AuthenticatedUser `json:"user"`
 }
 
 // AuthRefreshResponse 刷新响应。
 type AuthRefreshResponse struct {
-        AccessToken       string            `json:"access_token"`
-        RefreshToken      string            `json:"refresh_token"`
-        TokenType         string            `json:"token_type"`
-        ExpiresIn         int64             `json:"expires_in"`
-        RefreshExpiresIn  int64             `json:"refresh_expires_in"`
-        User              AuthenticatedUser `json:"user"`
+	AccessToken      string            `json:"access_token"`
+	RefreshToken     string            `json:"refresh_token"`
+	TokenType        string            `json:"token_type"`
+	ExpiresIn        int64             `json:"expires_in"`
+	RefreshExpiresIn int64             `json:"refresh_expires_in"`
+	User             AuthenticatedUser `json:"user"`
+}
+
+// AdminModule 管理后台模块信息。
+type AdminModule struct {
+	Key         string   `json:"key"`
+	Name        string   `json:"name"`
+	Description string   `json:"description"`
+	Icon        string   `json:"icon"`
+	Route       string   `json:"route"`
+	Permissions []string `json:"permissions"`
+}
+
+// AdminDashboardResponse 返回管理后台模块集合。
+type AdminDashboardResponse struct {
+	Modules []AdminModule `json:"modules"`
 }
 
 // AdminListNodesRequest 管理端节点列表查询参数。
 type AdminListNodesRequest struct {
-        Page      int    `form:"page"`
-        PerPage   int    `form:"per_page"`
-        Sort      string `form:"sort"`
-        Direction string `form:"direction"`
-        Query     string `form:"q"`
-        Status    string `form:"status"`
-        Protocol  string `form:"protocol"`
+	Page      int    `form:"page"`
+	PerPage   int    `form:"per_page"`
+	Sort      string `form:"sort"`
+	Direction string `form:"direction"`
+	Query     string `form:"q"`
+	Status    string `form:"status"`
+	Protocol  string `form:"protocol"`
 }
 
 // NodeSummary 节点摘要信息。
@@ -282,4 +297,355 @@ type UserUpdateSubscriptionTemplateResponse struct {
 	SubscriptionID uint64 `json:"subscription_id"`
 	TemplateID     uint64 `json:"template_id"`
 	UpdatedAt      int64  `json:"updated_at"`
+}
+
+// AdminListPlansRequest 管理端套餐列表请求参数。
+type AdminListPlansRequest struct {
+	Page      int    `form:"page"`
+	PerPage   int    `form:"per_page"`
+	Sort      string `form:"sort"`
+	Direction string `form:"direction"`
+	Query     string `form:"q"`
+	Status    string `form:"status"`
+	Visible   *bool  `form:"visible"`
+}
+
+// AdminCreatePlanRequest 管理端创建套餐请求。
+type AdminCreatePlanRequest struct {
+	Name              string   `json:"name"`
+	Slug              string   `json:"slug"`
+	Description       string   `json:"description"`
+	Tags              []string `json:"tags"`
+	Features          []string `json:"features"`
+	PriceCents        int64    `json:"price_cents"`
+	Currency          string   `json:"currency"`
+	DurationDays      int      `json:"duration_days"`
+	TrafficLimitBytes int64    `json:"traffic_limit_bytes"`
+	DevicesLimit      int      `json:"devices_limit"`
+	SortOrder         int      `json:"sort_order"`
+	Status            string   `json:"status"`
+	Visible           bool     `json:"visible"`
+}
+
+// AdminUpdatePlanRequest 管理端更新套餐请求。
+type AdminUpdatePlanRequest struct {
+	PlanID            uint64   `path:"id"`
+	Name              *string  `json:"name"`
+	Slug              *string  `json:"slug"`
+	Description       *string  `json:"description"`
+	Tags              []string `json:"tags"`
+	Features          []string `json:"features"`
+	PriceCents        *int64   `json:"price_cents"`
+	Currency          *string  `json:"currency"`
+	DurationDays      *int     `json:"duration_days"`
+	TrafficLimitBytes *int64   `json:"traffic_limit_bytes"`
+	DevicesLimit      *int     `json:"devices_limit"`
+	SortOrder         *int     `json:"sort_order"`
+	Status            *string  `json:"status"`
+	Visible           *bool    `json:"visible"`
+}
+
+// PlanSummary 套餐概览。
+type PlanSummary struct {
+	ID                uint64   `json:"id"`
+	Name              string   `json:"name"`
+	Slug              string   `json:"slug"`
+	Description       string   `json:"description"`
+	Tags              []string `json:"tags"`
+	Features          []string `json:"features"`
+	PriceCents        int64    `json:"price_cents"`
+	Currency          string   `json:"currency"`
+	DurationDays      int      `json:"duration_days"`
+	TrafficLimitBytes int64    `json:"traffic_limit_bytes"`
+	DevicesLimit      int      `json:"devices_limit"`
+	SortOrder         int      `json:"sort_order"`
+	Status            string   `json:"status"`
+	Visible           bool     `json:"visible"`
+	CreatedAt         int64    `json:"created_at"`
+	UpdatedAt         int64    `json:"updated_at"`
+}
+
+// AdminPlanListResponse 管理端套餐列表响应。
+type AdminPlanListResponse struct {
+	Plans      []PlanSummary  `json:"plans"`
+	Pagination PaginationMeta `json:"pagination"`
+}
+
+// AdminListAnnouncementsRequest 管理端公告列表参数。
+type AdminListAnnouncementsRequest struct {
+	Page      int    `form:"page"`
+	PerPage   int    `form:"per_page"`
+	Status    string `form:"status"`
+	Category  string `form:"category"`
+	Audience  string `form:"audience"`
+	Query     string `form:"q"`
+	Sort      string `form:"sort"`
+	Direction string `form:"direction"`
+}
+
+// AdminCreateAnnouncementRequest 创建公告。
+type AdminCreateAnnouncementRequest struct {
+	Title     string `json:"title"`
+	Content   string `json:"content"`
+	Category  string `json:"category"`
+	Audience  string `json:"audience"`
+	IsPinned  bool   `json:"is_pinned"`
+	Priority  int    `json:"priority"`
+	CreatedBy string `json:"created_by"`
+}
+
+// AdminPublishAnnouncementRequest 发布公告。
+type AdminPublishAnnouncementRequest struct {
+	AnnouncementID uint64 `path:"id"`
+	VisibleTo      int64  `json:"visible_to"`
+	Operator       string `json:"operator"`
+}
+
+// AnnouncementSummary 公告信息。
+type AnnouncementSummary struct {
+	ID          uint64 `json:"id"`
+	Title       string `json:"title"`
+	Content     string `json:"content"`
+	Category    string `json:"category"`
+	Status      string `json:"status"`
+	Audience    string `json:"audience"`
+	IsPinned    bool   `json:"is_pinned"`
+	Priority    int    `json:"priority"`
+	VisibleFrom int64  `json:"visible_from"`
+	VisibleTo   *int64 `json:"visible_to"`
+	PublishedAt *int64 `json:"published_at"`
+	PublishedBy string `json:"published_by"`
+	CreatedBy   string `json:"created_by"`
+	UpdatedBy   string `json:"updated_by"`
+	CreatedAt   int64  `json:"created_at"`
+	UpdatedAt   int64  `json:"updated_at"`
+}
+
+// AdminAnnouncementListResponse 管理端公告响应。
+type AdminAnnouncementListResponse struct {
+	Announcements []AnnouncementSummary `json:"announcements"`
+	Pagination    PaginationMeta        `json:"pagination"`
+}
+
+// SecuritySetting 第三方安全配置。
+type SecuritySetting struct {
+	ID                   uint64 `json:"id"`
+	ThirdPartyAPIEnabled bool   `json:"third_party_api_enabled"`
+	APIKey               string `json:"api_key"`
+	APISecret            string `json:"api_secret"`
+	EncryptionAlgorithm  string `json:"encryption_algorithm"`
+	NonceTTLSeconds      int    `json:"nonce_ttl_seconds"`
+	CreatedAt            int64  `json:"created_at"`
+	UpdatedAt            int64  `json:"updated_at"`
+}
+
+// AdminSecuritySettingResponse 安全配置响应。
+type AdminSecuritySettingResponse struct {
+	Setting SecuritySetting `json:"setting"`
+}
+
+// AdminUpdateSecuritySettingRequest 更新安全配置。
+type AdminUpdateSecuritySettingRequest struct {
+	ThirdPartyAPIEnabled *bool   `json:"third_party_api_enabled"`
+	APIKey               *string `json:"api_key"`
+	APISecret            *string `json:"api_secret"`
+	EncryptionAlgorithm  *string `json:"encryption_algorithm"`
+	NonceTTLSeconds      *int    `json:"nonce_ttl_seconds"`
+}
+
+// UserPlanListRequest 用户套餐列表参数。
+type UserPlanListRequest struct {
+	Query string `form:"q"`
+}
+
+// UserPlanSummary 用户侧套餐信息。
+type UserPlanSummary struct {
+	ID                uint64   `json:"id"`
+	Name              string   `json:"name"`
+	Description       string   `json:"description"`
+	Features          []string `json:"features"`
+	PriceCents        int64    `json:"price_cents"`
+	Currency          string   `json:"currency"`
+	DurationDays      int      `json:"duration_days"`
+	TrafficLimitBytes int64    `json:"traffic_limit_bytes"`
+	DevicesLimit      int      `json:"devices_limit"`
+	Tags              []string `json:"tags"`
+}
+
+// UserPlanListResponse 用户套餐列表。
+type UserPlanListResponse struct {
+	Plans []UserPlanSummary `json:"plans"`
+}
+
+// UserAnnouncementListRequest 用户公告请求。
+type UserAnnouncementListRequest struct {
+	Audience string `form:"audience"`
+	Limit    int    `form:"limit"`
+}
+
+// UserAnnouncementSummary 用户公告信息。
+type UserAnnouncementSummary struct {
+	ID          uint64 `json:"id"`
+	Title       string `json:"title"`
+	Content     string `json:"content"`
+	Category    string `json:"category"`
+	Audience    string `json:"audience"`
+	IsPinned    bool   `json:"is_pinned"`
+	Priority    int    `json:"priority"`
+	VisibleFrom int64  `json:"visible_from"`
+	VisibleTo   *int64 `json:"visible_to"`
+	PublishedAt *int64 `json:"published_at"`
+}
+
+// UserAnnouncementListResponse 用户公告响应。
+type UserAnnouncementListResponse struct {
+	Announcements []UserAnnouncementSummary `json:"announcements"`
+}
+
+// UserBalanceRequest 用户余额请求。
+type UserBalanceRequest struct {
+	Page    int    `form:"page"`
+	PerPage int    `form:"per_page"`
+	Type    string `form:"type"`
+}
+
+// BalanceTransactionSummary 用户余额流水。
+type BalanceTransactionSummary struct {
+	ID                uint64         `json:"id"`
+	Type              string         `json:"type"`
+	AmountCents       int64          `json:"amount_cents"`
+	Currency          string         `json:"currency"`
+	BalanceAfterCents int64          `json:"balance_after_cents"`
+	Reference         string         `json:"reference"`
+	Description       string         `json:"description"`
+	Metadata          map[string]any `json:"metadata"`
+	CreatedAt         int64          `json:"created_at"`
+}
+
+// UserBalanceResponse 用户余额详情。
+type UserBalanceResponse struct {
+	UserID       uint64                      `json:"user_id"`
+	BalanceCents int64                       `json:"balance_cents"`
+	Currency     string                      `json:"currency"`
+	UpdatedAt    int64                       `json:"updated_at"`
+	Transactions []BalanceTransactionSummary `json:"transactions"`
+	Pagination   PaginationMeta              `json:"pagination"`
+}
+
+// BalanceSnapshot 余额快照。
+type BalanceSnapshot struct {
+	UserID       uint64 `json:"user_id"`
+	BalanceCents int64  `json:"balance_cents"`
+	Currency     string `json:"currency"`
+	UpdatedAt    int64  `json:"updated_at"`
+}
+
+// OrderItem 订单条目。
+type OrderItem struct {
+	ID             uint64         `json:"id"`
+	OrderID        uint64         `json:"order_id"`
+	ItemType       string         `json:"item_type"`
+	ItemID         uint64         `json:"item_id"`
+	Name           string         `json:"name"`
+	Quantity       int            `json:"quantity"`
+	UnitPriceCents int64          `json:"unit_price_cents"`
+	Currency       string         `json:"currency"`
+	SubtotalCents  int64          `json:"subtotal_cents"`
+	Metadata       map[string]any `json:"metadata"`
+	CreatedAt      int64          `json:"created_at"`
+}
+
+// OrderDetail 订单详情。
+type OrderDetail struct {
+	ID            uint64         `json:"id"`
+	Number        string         `json:"number"`
+	UserID        uint64         `json:"user_id"`
+	Status        string         `json:"status"`
+	TotalCents    int64          `json:"total_cents"`
+	Currency      string         `json:"currency"`
+	PaymentMethod string         `json:"payment_method"`
+	PlanID        *uint64        `json:"plan_id,omitempty"`
+	PlanSnapshot  map[string]any `json:"plan_snapshot,omitempty"`
+	Metadata      map[string]any `json:"metadata,omitempty"`
+	PaidAt        *int64         `json:"paid_at,omitempty"`
+	CancelledAt   *int64         `json:"cancelled_at,omitempty"`
+	CreatedAt     int64          `json:"created_at"`
+	UpdatedAt     int64          `json:"updated_at"`
+	Items         []OrderItem    `json:"items"`
+}
+
+// UserCreateOrderRequest 创建订单请求。
+type UserCreateOrderRequest struct {
+	PlanID   uint64 `json:"plan_id"`
+	Quantity int    `json:"quantity"`
+}
+
+// UserOrderListRequest 用户订单列表查询参数。
+type UserOrderListRequest struct {
+	Page          int    `form:"page"`
+	PerPage       int    `form:"per_page"`
+	Status        string `form:"status"`
+	PaymentMethod string `form:"payment_method"`
+	Number        string `form:"number"`
+	Sort          string `form:"sort"`
+	Direction     string `form:"direction"`
+}
+
+// UserOrderListResponse 用户订单列表响应。
+type UserOrderListResponse struct {
+	Orders     []OrderDetail  `json:"orders"`
+	Pagination PaginationMeta `json:"pagination"`
+}
+
+// UserOrderResponse 用户订单详情响应。
+type UserOrderResponse struct {
+	Order       OrderDetail                `json:"order"`
+	Balance     BalanceSnapshot            `json:"balance"`
+	Transaction *BalanceTransactionSummary `json:"transaction,omitempty"`
+}
+
+// UserGetOrderRequest 用户订单详情请求。
+type UserGetOrderRequest struct {
+	OrderID uint64 `path:"id"`
+}
+
+// AdminListOrdersRequest 管理端订单列表查询。
+type AdminListOrdersRequest struct {
+	Page          int    `form:"page"`
+	PerPage       int    `form:"per_page"`
+	Status        string `form:"status"`
+	PaymentMethod string `form:"payment_method"`
+	Number        string `form:"number"`
+	Sort          string `form:"sort"`
+	Direction     string `form:"direction"`
+	UserID        uint64 `form:"user_id"`
+}
+
+// OrderUserSummary 订单关联用户摘要。
+type OrderUserSummary struct {
+	ID          uint64 `json:"id"`
+	Email       string `json:"email"`
+	DisplayName string `json:"display_name"`
+}
+
+// AdminOrderDetail 管理端订单详情。
+type AdminOrderDetail struct {
+	OrderDetail
+	User OrderUserSummary `json:"user"`
+}
+
+// AdminOrderListResponse 管理端订单列表响应。
+type AdminOrderListResponse struct {
+	Orders     []AdminOrderDetail `json:"orders"`
+	Pagination PaginationMeta     `json:"pagination"`
+}
+
+// AdminGetOrderRequest 管理端订单详情请求。
+type AdminGetOrderRequest struct {
+	OrderID uint64 `path:"id"`
+}
+
+// AdminOrderResponse 管理端订单详情响应。
+type AdminOrderResponse struct {
+	Order AdminOrderDetail `json:"order"`
 }

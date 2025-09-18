@@ -6,6 +6,7 @@ import (
 
 	"gorm.io/driver/mysql"
 	"gorm.io/driver/postgres"
+	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 )
@@ -45,6 +46,8 @@ func NewGorm(cfg Config) (*gorm.DB, CloseFunc, error) {
 		db, err = gorm.Open(mysql.Open(cfg.DSN), gormConfig)
 	case "postgres", "postgresql":
 		db, err = gorm.Open(postgres.Open(cfg.DSN), gormConfig)
+	case "sqlite", "sqlite3":
+		db, err = gorm.Open(sqlite.Open(cfg.DSN), gormConfig)
 	default:
 		return nil, nil, fmt.Errorf("unsupported database driver: %s", cfg.Driver)
 	}

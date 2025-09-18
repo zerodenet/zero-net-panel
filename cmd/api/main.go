@@ -1,17 +1,15 @@
 package main
 
 import (
+	"context"
 	"flag"
-	"fmt"
 	"log"
 
 	"github.com/zeromicro/go-zero/core/conf"
-	"github.com/zeromicro/go-zero/core/proc"
-	"github.com/zeromicro/go-zero/rest"
 
+	"github.com/zero-net-panel/zero-net-panel/cmd/znp/cli"
+	"github.com/zero-net-panel/zero-net-panel/internal/bootstrap"
 	"github.com/zero-net-panel/zero-net-panel/internal/config"
-	"github.com/zero-net-panel/zero-net-panel/internal/handler"
-	"github.com/zero-net-panel/zero-net-panel/internal/svc"
 )
 
 var configFile = flag.String("f", "etc/znp-api.yaml", "the config file")
@@ -19,24 +17,17 @@ var configFile = flag.String("f", "etc/znp-api.yaml", "the config file")
 func main() {
 	flag.Parse()
 
-	var c config.Config
-	conf.MustLoad(*configFile, &c)
-
-	ctx, err := svc.NewServiceContext(c)
-	if err != nil {
-		log.Fatalf("failed to initialise service context: %v", err)
+	var cfg config.Config
+	if err := conf.Load(*configFile, &cfg); err != nil {
+		log.Fatalf("failed to load config %s: %v", *configFile, err)
 	}
-	defer ctx.Cleanup()
+	cfg.Normalize()
 
-	proc.AddShutdownListener(func() {
-		ctx.Cancel()
-	})
+	if err := bootstrap.PrepareDatabase(context.Background(), cfg, bootstrap.DatabaseOptions{AutoMigrate: true, TargetVersion: 0}); err != nil {
+		log.Fatalf("failed to prepare database: %v", err)
+	}
 
-	server := rest.MustNewServer(c.RestConf)
-	defer server.Stop()
-
-	handler.RegisterHandlers(server, ctx)
-
-	fmt.Printf("Starting server at %s:%d...\n", c.Host, c.Port)
-	server.Start()
+	if err := cli.RunServices(context.Background(), cfg); err != nil {
+		log.Fatalf("services exited with error: %v", err)
+	}
 }

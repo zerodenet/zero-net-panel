@@ -41,3 +41,11 @@ Auth:
 Metrics:
   Enable: true
   Path: /metrics
+
+Admin:
+  RoutePrefix: admin
+
+GRPCServer:
+  Enable: true
+  ListenOn: 0.0.0.0:8890
+  Reflection: true

@@ -1,0 +1,40 @@
+Name: znp.api
+Host: 0.0.0.0
+Port: 8888
+Timeout: 60000
+
+Project:
+  Name: Zero Network Panel
+  Description: Backend service benchmarked against xboard capabilities
+  Version: 0.1.0
+
+Database:
+  Driver: sqlite
+  DSN: file:znp-dev.db?cache=shared&_foreign_keys=1
+  LogLevel: warn
+
+Cache:
+  Provider: memory
+  Memory:
+    Size: 1024
+
+Kernel:
+  DefaultProtocol: http
+  HTTP:
+    BaseURL: http://kernel.local
+    Token: ""
+    Timeout: 5s
+  GRPC:
+    Endpoint: 127.0.0.1:9000
+    TLSCert: ""
+    Timeout: 5s
+
+Auth:
+  AccessSecret: change-me
+  AccessExpire: 24h
+  RefreshSecret: change-me-too
+  RefreshExpire: 720h
+
+Metrics:
+  Enable: true
+  Path: /metrics

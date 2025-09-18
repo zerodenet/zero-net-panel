@@ -2,6 +2,7 @@ package svc
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"gorm.io/gorm"
@@ -29,9 +30,15 @@ type ServiceContext struct {
 }
 
 func NewServiceContext(c config.Config) (*ServiceContext, error) {
+	c.Normalize()
+
 	db, dbClose, err := database.NewGorm(c.Database)
 	if err != nil {
 		return nil, fmt.Errorf("init database: %w", err)
+	}
+	if db == nil {
+		dbClose()
+		return nil, fmt.Errorf("init database: %w", errors.New("database configuration is required"))
 	}
 
 	cacheProvider, err := cache.New(c.Cache)
@@ -61,7 +68,13 @@ func NewServiceContext(c config.Config) (*ServiceContext, error) {
 		return nil, fmt.Errorf("init kernel registry: %w", err)
 	}
 
-	repos := repository.NewRepositories(db)
+	repos, err := repository.NewRepositories(db)
+	if err != nil {
+		_ = kernelRegistry.Close()
+		_ = cacheProvider.Close()
+		dbClose()
+		return nil, fmt.Errorf("init repositories: %w", err)
+	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 

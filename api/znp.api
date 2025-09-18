@@ -23,6 +23,11 @@ service znp {
     @handler AuthRefresh
     post /auth/refresh(AuthRefreshRequest) returns (AuthRefreshResponse)
 
+    @doc "List admin console modules"
+    @handler AdminDashboard
+    // NOTE: actual mount path honours Admin.RoutePrefix (default: /admin)
+    get /admin/dashboard() returns (AdminDashboardResponse)
+
     @doc "List edge nodes"
     @handler AdminListNodes
     get /admin/nodes(AdminListNodesRequest) returns (AdminNodeListResponse)
@@ -55,6 +60,46 @@ service znp {
     @handler AdminSubscriptionTemplateHistory
     get /admin/subscription-templates/:id/history(AdminSubscriptionTemplateHistoryRequest) returns (AdminSubscriptionTemplateHistoryResponse)
 
+    @doc "List subscription plans"
+    @handler AdminListPlans
+    get /admin/plans(AdminListPlansRequest) returns (AdminPlanListResponse)
+
+    @doc "Create subscription plan"
+    @handler AdminCreatePlan
+    post /admin/plans(AdminCreatePlanRequest) returns (PlanSummary)
+
+    @doc "Update subscription plan"
+    @handler AdminUpdatePlan
+    patch /admin/plans/:id(AdminUpdatePlanRequest) returns (PlanSummary)
+
+    @doc "List announcements"
+    @handler AdminListAnnouncements
+    get /admin/announcements(AdminListAnnouncementsRequest) returns (AdminAnnouncementListResponse)
+
+    @doc "Create announcement"
+    @handler AdminCreateAnnouncement
+    post /admin/announcements(AdminCreateAnnouncementRequest) returns (AnnouncementSummary)
+
+    @doc "Publish announcement"
+    @handler AdminPublishAnnouncement
+    post /admin/announcements/:id/publish(AdminPublishAnnouncementRequest) returns (AnnouncementSummary)
+
+    @doc "Get third-party security settings"
+    @handler AdminGetSecuritySetting
+    get /admin/security-settings() returns (AdminSecuritySettingResponse)
+
+    @doc "Update third-party security settings"
+    @handler AdminUpdateSecuritySetting
+    patch /admin/security-settings(AdminUpdateSecuritySettingRequest) returns (AdminSecuritySettingResponse)
+
+    @doc "List billing orders"
+    @handler AdminListOrders
+    get /admin/orders(AdminListOrdersRequest) returns (AdminOrderListResponse)
+
+    @doc "Get order detail"
+    @handler AdminGetOrder
+    get /admin/orders/:id(AdminGetOrderRequest) returns (AdminOrderResponse)
+
     @doc "List user subscriptions"
     @handler UserListSubscriptions
     get /user/subscriptions(UserListSubscriptionsRequest) returns (UserSubscriptionListResponse)
@@ -66,6 +111,30 @@ service znp {
     @doc "Update user subscription template"
     @handler UserUpdateSubscriptionTemplate
     post /user/subscriptions/:id/template(UserUpdateSubscriptionTemplateRequest) returns (UserUpdateSubscriptionTemplateResponse)
+
+    @doc "List available plans"
+    @handler UserListPlans
+    get /user/plans(UserPlanListRequest) returns (UserPlanListResponse)
+
+    @doc "List active announcements"
+    @handler UserListAnnouncements
+    get /user/announcements(UserAnnouncementListRequest) returns (UserAnnouncementListResponse)
+
+    @doc "Get user balance"
+    @handler UserBalance
+    get /user/account/balance(UserBalanceRequest) returns (UserBalanceResponse)
+
+    @doc "Create order from plan"
+    @handler UserCreateOrder
+    post /user/orders(UserCreateOrderRequest) returns (UserOrderResponse)
+
+    @doc "List user orders"
+    @handler UserListOrders
+    get /user/orders(UserOrderListRequest) returns (UserOrderListResponse)
+
+    @doc "Get user order detail"
+    @handler UserGetOrder
+    get /user/orders/:id(UserGetOrderRequest) returns (UserOrderResponse)
 }
 
 type PingResponse {
@@ -117,6 +186,19 @@ type AuthRefreshResponse {
     expires_in int64
     refresh_expires_in int64
     user AuthenticatedUser
+}
+
+type AdminDashboardResponse {
+    modules []AdminModule
+}
+
+type AdminModule {
+    key string
+    name string
+    description string
+    icon string
+    route string
+    permissions []string
 }
 
 type AdminListNodesRequest {
@@ -319,3 +401,332 @@ type UserUpdateSubscriptionTemplateResponse {
     updated_at int64
 }
 
+
+type AdminListPlansRequest {
+    page int(optional)
+    per_page int(optional)
+    sort string(optional)
+    direction string(optional)
+    q string(optional)
+    status string(optional)
+    visible bool(optional)
+}
+
+type AdminCreatePlanRequest {
+    name string
+    slug string(optional)
+    description string(optional)
+    tags []string(optional)
+    features []string(optional)
+    price_cents int64
+    currency string
+    duration_days int
+    traffic_limit_bytes int64(optional)
+    devices_limit int(optional)
+    sort_order int(optional)
+    status string(optional)
+    visible bool(optional)
+}
+
+type AdminUpdatePlanRequest {
+    id uint64
+    name string(optional)
+    slug string(optional)
+    description string(optional)
+    tags []string(optional)
+    features []string(optional)
+    price_cents int64(optional)
+    currency string(optional)
+    duration_days int(optional)
+    traffic_limit_bytes int64(optional)
+    devices_limit int(optional)
+    sort_order int(optional)
+    status string(optional)
+    visible bool(optional)
+}
+
+type PlanSummary {
+    id uint64
+    name string
+    slug string
+    description string
+    tags []string
+    features []string
+    price_cents int64
+    currency string
+    duration_days int
+    traffic_limit_bytes int64
+    devices_limit int
+    sort_order int
+    status string
+    visible bool
+    created_at int64
+    updated_at int64
+}
+
+type AdminPlanListResponse {
+    plans []PlanSummary
+    pagination PaginationMeta
+}
+
+type AdminListAnnouncementsRequest {
+    page int(optional)
+    per_page int(optional)
+    status string(optional)
+    category string(optional)
+    audience string(optional)
+    q string(optional)
+    sort string(optional)
+    direction string(optional)
+}
+
+type AdminCreateAnnouncementRequest {
+    title string
+    content string
+    category string(optional)
+    audience string(optional)
+    is_pinned bool(optional)
+    priority int(optional)
+    created_by string(optional)
+}
+
+type AdminPublishAnnouncementRequest {
+    id uint64
+    visible_to int64(optional)
+    operator string(optional)
+}
+
+type AnnouncementSummary {
+    id uint64
+    title string
+    content string
+    category string
+    status string
+    audience string
+    is_pinned bool
+    priority int
+    visible_from int64
+    visible_to int64(optional)
+    published_at int64(optional)
+    published_by string
+    created_by string
+    updated_by string
+    created_at int64
+    updated_at int64
+}
+
+type AdminAnnouncementListResponse {
+    announcements []AnnouncementSummary
+    pagination PaginationMeta
+}
+
+type AdminSecuritySettingResponse {
+    setting SecuritySetting
+}
+
+type SecuritySetting {
+    id uint64
+    third_party_api_enabled bool
+    api_key string
+    api_secret string
+    encryption_algorithm string
+    nonce_ttl_seconds int
+    created_at int64
+    updated_at int64
+}
+
+type AdminUpdateSecuritySettingRequest {
+    third_party_api_enabled bool(optional)
+    api_key string(optional)
+    api_secret string(optional)
+    encryption_algorithm string(optional)
+    nonce_ttl_seconds int(optional)
+}
+
+type UserPlanListRequest {
+    q string(optional)
+}
+
+type UserPlanSummary {
+    id uint64
+    name string
+    description string
+    features []string
+    price_cents int64
+    currency string
+    duration_days int
+    traffic_limit_bytes int64
+    devices_limit int
+    tags []string
+}
+
+type UserPlanListResponse {
+    plans []UserPlanSummary
+}
+
+type UserAnnouncementListRequest {
+    audience string(optional)
+    limit int(optional)
+}
+
+type UserAnnouncementSummary {
+    id uint64
+    title string
+    content string
+    category string
+    audience string
+    is_pinned bool
+    priority int
+    visible_from int64
+    visible_to int64(optional)
+    published_at int64(optional)
+}
+
+type UserAnnouncementListResponse {
+    announcements []UserAnnouncementSummary
+}
+
+type UserBalanceRequest {
+    page int(optional)
+    per_page int(optional)
+    type string(optional)
+}
+
+type BalanceTransactionSummary {
+    id uint64
+    type string
+    amount_cents int64
+    currency string
+    balance_after_cents int64
+    reference string
+    description string
+    metadata map[string]any
+    created_at int64
+}
+
+type UserBalanceResponse {
+    user_id uint64
+    balance_cents int64
+    currency string
+    updated_at int64
+    transactions []BalanceTransactionSummary
+    pagination PaginationMeta
+}
+
+type BalanceSnapshot {
+    user_id uint64
+    balance_cents int64
+    currency string
+    updated_at int64
+}
+
+type OrderItem {
+    id uint64
+    order_id uint64
+    item_type string
+    item_id uint64
+    name string
+    quantity int
+    unit_price_cents int64
+    currency string
+    subtotal_cents int64
+    metadata map[string]any
+    created_at int64
+}
+
+type OrderDetail {
+    id uint64
+    number string
+    user_id uint64
+    status string
+    total_cents int64
+    currency string
+    payment_method string
+    plan_id *uint64
+    plan_snapshot map[string]any
+    metadata map[string]any
+    paid_at *int64
+    cancelled_at *int64
+    created_at int64
+    updated_at int64
+    items []OrderItem
+}
+
+type UserCreateOrderRequest {
+    plan_id uint64
+    quantity int
+}
+
+type UserOrderListRequest {
+    page int
+    per_page int
+    status string
+    payment_method string
+    number string
+    sort string
+    direction string
+}
+
+type UserOrderListResponse {
+    orders []OrderDetail
+    pagination PaginationMeta
+}
+
+type UserOrderResponse {
+    order OrderDetail
+    balance BalanceSnapshot
+    transaction *BalanceTransactionSummary
+}
+
+type UserGetOrderRequest {
+    id uint64
+}
+
+type AdminListOrdersRequest {
+    page int
+    per_page int
+    status string
+    payment_method string
+    number string
+    sort string
+    direction string
+    user_id uint64
+}
+
+type OrderUserSummary {
+    id uint64
+    email string
+    display_name string
+}
+
+type AdminOrderDetail {
+    id uint64
+    number string
+    user_id uint64
+    status string
+    total_cents int64
+    currency string
+    payment_method string
+    plan_id *uint64
+    plan_snapshot map[string]any
+    metadata map[string]any
+    paid_at *int64
+    cancelled_at *int64
+    created_at int64
+    updated_at int64
+    items []OrderItem
+    user OrderUserSummary
+}
+
+type AdminOrderListResponse {
+    orders []AdminOrderDetail
+    pagination PaginationMeta
+}
+
+type AdminGetOrderRequest {
+    id uint64
+}
+
+type AdminOrderResponse {
+    order AdminOrderDetail
+}

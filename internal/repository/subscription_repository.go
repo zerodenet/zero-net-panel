@@ -2,24 +2,25 @@ package repository
 
 import (
 	"context"
-	"sort"
+	"errors"
+	"fmt"
 	"strings"
-	"sync"
 	"time"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // Subscription 表示用户订阅信息。
 type Subscription struct {
-	ID                   uint64
-	UserID               uint64
-	Name                 string
-	PlanName             string
-	Status               string
+	ID                   uint64 `gorm:"primaryKey"`
+	UserID               uint64 `gorm:"index"`
+	Name                 string `gorm:"size:255"`
+	PlanName             string `gorm:"size:255"`
+	Status               string `gorm:"size:32"`
 	TemplateID           uint64
-	AvailableTemplateIDs []uint64
-	Token                string
+	AvailableTemplateIDs []uint64 `gorm:"serializer:json"`
+	Token                string   `gorm:"size:255"`
 	ExpiresAt            time.Time
 	TrafficTotalBytes    int64
 	TrafficUsedBytes     int64
@@ -28,6 +29,9 @@ type Subscription struct {
 	CreatedAt            time.Time
 	UpdatedAt            time.Time
 }
+
+// TableName 自定义订阅表名。
+func (Subscription) TableName() string { return "subscriptions" }
 
 // ListSubscriptionsOptions 控制订阅列表的分页与过滤。
 type ListSubscriptionsOptions struct {
@@ -49,63 +53,17 @@ type SubscriptionRepository interface {
 type subscriptionRepository struct {
 	db           *gorm.DB
 	templateRepo SubscriptionTemplateRepository
-
-	mu            sync.RWMutex
-	subscriptions map[uint64]*Subscription
-	nextID        uint64
 }
 
 // NewSubscriptionRepository 创建订阅仓储。
-func NewSubscriptionRepository(db *gorm.DB, templateRepo SubscriptionTemplateRepository) SubscriptionRepository {
-	repo := &subscriptionRepository{
-		db:            db,
-		templateRepo:  templateRepo,
-		subscriptions: make(map[uint64]*Subscription),
-		nextID:        1,
+func NewSubscriptionRepository(db *gorm.DB, templateRepo SubscriptionTemplateRepository) (SubscriptionRepository, error) {
+	if db == nil {
+		return nil, errors.New("repository: database connection is required")
 	}
-	repo.seed()
-	return repo
-}
-
-func (r *subscriptionRepository) seed() {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	templates, _, err := r.templateRepo.List(context.Background(), ListTemplatesOptions{PerPage: 50, IncludeDrafts: true})
-	if err != nil {
-		return
+	if templateRepo == nil {
+		return nil, errors.New("repository: template repository is required")
 	}
-
-	allowed := make([]uint64, 0, len(templates))
-	defaultTemplate := uint64(0)
-	for _, tpl := range templates {
-		allowed = append(allowed, tpl.ID)
-		if tpl.IsDefault && defaultTemplate == 0 {
-			defaultTemplate = tpl.ID
-		}
-	}
-	if defaultTemplate == 0 && len(allowed) > 0 {
-		defaultTemplate = allowed[0]
-	}
-
-	now := time.Now().UTC()
-	sub := &Subscription{
-		Name:                 "VIP 全球高速",
-		PlanName:             "VIP-Plus",
-		Status:               "active",
-		UserID:               2,
-		TemplateID:           defaultTemplate,
-		AvailableTemplateIDs: allowed,
-		Token:                "demo-token-123",
-		ExpiresAt:            now.Add(30 * 24 * time.Hour),
-		TrafficTotalBytes:    1 << 40, // 1 TiB
-		TrafficUsedBytes:     256 << 30,
-		DevicesLimit:         5,
-		LastRefreshedAt:      now.Add(-1 * time.Hour),
-		CreatedAt:            now.Add(-48 * time.Hour),
-		UpdatedAt:            now.Add(-2 * time.Hour),
-	}
-	r.addSubscriptionLocked(sub)
+	return &subscriptionRepository{db: db, templateRepo: templateRepo}, nil
 }
 
 func (r *subscriptionRepository) ListByUser(ctx context.Context, userID uint64, opts ListSubscriptionsOptions) ([]Subscription, int64, error) {
@@ -115,52 +73,35 @@ func (r *subscriptionRepository) ListByUser(ctx context.Context, userID uint64, 
 
 	opts = normalizeListSubscriptionsOptions(opts)
 
-	r.mu.RLock()
-	defer r.mu.RUnlock()
+	base := r.db.WithContext(ctx).Model(&Subscription{}).Where("user_id = ?", userID)
 
-	query := strings.TrimSpace(strings.ToLower(opts.Query))
-	status := strings.TrimSpace(strings.ToLower(opts.Status))
-
-	items := make([]Subscription, 0)
-	for _, sub := range r.subscriptions {
-		if sub.UserID != userID {
-			continue
-		}
-		if query != "" {
-			if !strings.Contains(strings.ToLower(sub.Name), query) &&
-				!strings.Contains(strings.ToLower(sub.PlanName), query) {
-				continue
-			}
-		}
-		if status != "" && !strings.EqualFold(sub.Status, status) {
-			continue
-		}
-		items = append(items, cloneSubscription(sub))
+	if query := strings.TrimSpace(strings.ToLower(opts.Query)); query != "" {
+		like := fmt.Sprintf("%%%s%%", query)
+		base = base.Where("(LOWER(name) LIKE ? OR LOWER(plan_name) LIKE ?)", like, like)
+	}
+	if status := strings.TrimSpace(strings.ToLower(opts.Status)); status != "" {
+		base = base.Where("LOWER(status) = ?", status)
 	}
 
-	sortField := opts.Sort
-	desc := strings.EqualFold(opts.Direction, "desc")
-	sort.SliceStable(items, func(i, j int) bool {
-		if desc {
-			return subscriptionLess(items[j], items[i], sortField)
-		}
-		return subscriptionLess(items[i], items[j], sortField)
-	})
-
-	total := int64(len(items))
-	start := (opts.Page - 1) * opts.PerPage
-	if start >= len(items) {
-		return []Subscription{}, total, nil
+	countQuery := base.Session(&gorm.Session{})
+	var total int64
+	if err := countQuery.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+	if total == 0 {
+		return []Subscription{}, 0, nil
 	}
 
-	end := start + opts.PerPage
-	if end > len(items) {
-		end = len(items)
+	orderClause := buildSubscriptionOrderClause(opts.Sort, opts.Direction)
+	offset := (opts.Page - 1) * opts.PerPage
+	listQuery := base.Session(&gorm.Session{}).Order(orderClause).Limit(opts.PerPage).Offset(offset)
+
+	var subscriptions []Subscription
+	if err := listQuery.Find(&subscriptions).Error; err != nil {
+		return nil, 0, err
 	}
 
-	result := make([]Subscription, end-start)
-	copy(result, items[start:end])
-	return result, total, nil
+	return subscriptions, total, nil
 }
 
 func (r *subscriptionRepository) Get(ctx context.Context, id uint64) (Subscription, error) {
@@ -168,15 +109,12 @@ func (r *subscriptionRepository) Get(ctx context.Context, id uint64) (Subscripti
 		return Subscription{}, err
 	}
 
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-
-	sub, ok := r.subscriptions[id]
-	if !ok {
-		return Subscription{}, ErrNotFound
+	var subscription Subscription
+	if err := r.db.WithContext(ctx).First(&subscription, id).Error; err != nil {
+		return Subscription{}, translateError(err)
 	}
 
-	return cloneSubscription(sub), nil
+	return subscription, nil
 }
 
 func (r *subscriptionRepository) UpdateTemplate(ctx context.Context, subscriptionID uint64, templateID uint64, userID uint64) (Subscription, error) {
@@ -184,62 +122,83 @@ func (r *subscriptionRepository) UpdateTemplate(ctx context.Context, subscriptio
 		return Subscription{}, err
 	}
 
-	r.mu.Lock()
-	defer r.mu.Unlock()
+	var subscription Subscription
 
-	sub, ok := r.subscriptions[subscriptionID]
-	if !ok {
-		return Subscription{}, ErrNotFound
-	}
-	if sub.UserID != userID {
-		return Subscription{}, ErrForbidden
-	}
+	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&subscription, subscriptionID).Error; err != nil {
+			return err
+		}
 
-	targetTemplate := templateID
-	if targetTemplate == 0 {
-		targetTemplate = sub.TemplateID
-	}
+		if subscription.UserID != userID {
+			return ErrForbidden
+		}
 
-	allowed := targetTemplate == sub.TemplateID
-	if !allowed {
-		for _, id := range sub.AvailableTemplateIDs {
-			if id == targetTemplate {
-				allowed = true
-				break
+		targetTemplate := templateID
+		if targetTemplate == 0 {
+			targetTemplate = subscription.TemplateID
+		}
+
+		if len(subscription.AvailableTemplateIDs) > 0 {
+			allowed := false
+			for _, id := range subscription.AvailableTemplateIDs {
+				if id == targetTemplate {
+					allowed = true
+					break
+				}
+			}
+			if !allowed {
+				return ErrForbidden
 			}
 		}
-	}
-	if !allowed {
-		return Subscription{}, ErrForbidden
+
+		var tpl SubscriptionTemplate
+		if err := tx.First(&tpl, targetTemplate).Error; err != nil {
+			return err
+		}
+
+		subscription.TemplateID = tpl.ID
+		now := time.Now().UTC()
+		subscription.LastRefreshedAt = now
+		subscription.UpdatedAt = now
+
+		return tx.Save(&subscription).Error
+	})
+
+	if err != nil {
+		switch {
+		case errors.Is(err, ErrForbidden):
+			return Subscription{}, err
+		default:
+			return Subscription{}, translateError(err)
+		}
 	}
 
-	if _, err := r.templateRepo.Get(ctx, targetTemplate); err != nil {
-		return Subscription{}, err
-	}
-
-	if sub.TemplateID != targetTemplate {
-		sub.TemplateID = targetTemplate
-		sub.UpdatedAt = time.Now().UTC()
-	}
-
-	return cloneSubscription(sub), nil
+	return subscription, nil
 }
 
-func (r *subscriptionRepository) addSubscriptionLocked(sub *Subscription) uint64 {
-	id := r.nextID
-	r.nextID++
-
-	copied := cloneSubscription(sub)
-	copied.ID = id
-	if copied.CreatedAt.IsZero() {
-		copied.CreatedAt = time.Now().UTC()
+func buildSubscriptionOrderClause(field, direction string) string {
+	column := "updated_at"
+	switch strings.ToLower(field) {
+	case "name":
+		column = "name"
+	case "plan_name":
+		column = "plan_name"
+	case "status":
+		column = "status"
+	case "expires_at":
+		column = "expires_at"
+	case "created_at":
+		column = "created_at"
+	default:
+		column = "updated_at"
 	}
-	if copied.UpdatedAt.IsZero() {
-		copied.UpdatedAt = copied.CreatedAt
+
+	dir := "ASC"
+	if strings.EqualFold(direction, "desc") {
+		dir = "DESC"
 	}
 
-	r.subscriptions[id] = &copied
-	return id
+	return fmt.Sprintf("%s %s", column, dir)
 }
 
 func normalizeListSubscriptionsOptions(opts ListSubscriptionsOptions) ListSubscriptionsOptions {
@@ -253,49 +212,11 @@ func normalizeListSubscriptionsOptions(opts ListSubscriptionsOptions) ListSubscr
 		opts.PerPage = 100
 	}
 	if opts.Sort == "" {
-		opts.Sort = "expires_at"
+		opts.Sort = "updated_at"
 	}
 	opts.Sort = strings.ToLower(opts.Sort)
 	if opts.Direction == "" {
 		opts.Direction = "desc"
 	}
 	return opts
-}
-
-func subscriptionLess(a, b Subscription, field string) bool {
-	switch field {
-	case "name":
-		if strings.EqualFold(a.Name, b.Name) {
-			return a.ID < b.ID
-		}
-		return strings.ToLower(a.Name) < strings.ToLower(b.Name)
-	case "plan_name":
-		if strings.EqualFold(a.PlanName, b.PlanName) {
-			return a.ID < b.ID
-		}
-		return strings.ToLower(a.PlanName) < strings.ToLower(b.PlanName)
-	case "created_at":
-		if a.CreatedAt.Equal(b.CreatedAt) {
-			return a.ID < b.ID
-		}
-		return a.CreatedAt.Before(b.CreatedAt)
-	case "updated_at":
-		if a.UpdatedAt.Equal(b.UpdatedAt) {
-			return a.ID < b.ID
-		}
-		return a.UpdatedAt.Before(b.UpdatedAt)
-	default: // expires_at
-		if a.ExpiresAt.Equal(b.ExpiresAt) {
-			return a.ID < b.ID
-		}
-		return a.ExpiresAt.Before(b.ExpiresAt)
-	}
-}
-
-func cloneSubscription(sub *Subscription) Subscription {
-	copied := *sub
-	if sub.AvailableTemplateIDs != nil {
-		copied.AvailableTemplateIDs = append([]uint64(nil), sub.AvailableTemplateIDs...)
-	}
-	return copied
 }

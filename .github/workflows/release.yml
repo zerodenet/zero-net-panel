@@ -1,0 +1,55 @@
+name: Release Builds
+
+on:
+  push:
+    branches: ["main"]
+    tags:
+      - "v*"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - goos: linux
+            goarch: amd64
+          - goos: linux
+            goarch: arm64
+          - goos: windows
+            goarch: amd64
+          - goos: darwin
+            goarch: amd64
+          - goos: darwin
+            goarch: arm64
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+
+      - name: Build binaries
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: 0
+        run: |
+          set -euo pipefail
+          OUTPUT_DIR="dist/${{ matrix.goos }}-${{ matrix.goarch }}"
+          mkdir -p "$OUTPUT_DIR"
+          EXT=""
+          if [ "${{ matrix.goos }}" = "windows" ]; then
+            EXT=".exe"
+          fi
+          go build -o "$OUTPUT_DIR/znp${EXT}" ./cmd/znp
+          go build -o "$OUTPUT_DIR/znp-api${EXT}" ./cmd/api
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: znp-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: dist/${{ matrix.goos }}-${{ matrix.goarch }}

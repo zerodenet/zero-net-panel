@@ -11,6 +11,7 @@ import (
 
 func RegisterHandlers(server *rest.Server, svcCtx *svc.ServiceContext) {
 	authMiddleware := middleware.NewAuthMiddleware(svcCtx.Auth, svcCtx.Repositories.User)
+	thirdPartyMiddleware := middleware.NewThirdPartyMiddleware(svcCtx.Repositories.Security)
 	server.AddRoutes(
 		[]rest.Route{
 			{
@@ -39,6 +40,11 @@ func RegisterHandlers(server *rest.Server, svcCtx *svc.ServiceContext) {
 	)
 
 	adminRoutes := []rest.Route{
+		{
+			Method:  http.MethodGet,
+			Path:    "/dashboard",
+			Handler: AdminDashboardHandler(svcCtx),
+		},
 		{
 			Method:  http.MethodGet,
 			Path:    "/nodes",
@@ -79,9 +85,64 @@ func RegisterHandlers(server *rest.Server, svcCtx *svc.ServiceContext) {
 			Path:    "/subscription-templates/:id/history",
 			Handler: AdminSubscriptionTemplateHistoryHandler(svcCtx),
 		},
+		{
+			Method:  http.MethodGet,
+			Path:    "/plans",
+			Handler: AdminListPlansHandler(svcCtx),
+		},
+		{
+			Method:  http.MethodPost,
+			Path:    "/plans",
+			Handler: AdminCreatePlanHandler(svcCtx),
+		},
+		{
+			Method:  http.MethodPatch,
+			Path:    "/plans/:id",
+			Handler: AdminUpdatePlanHandler(svcCtx),
+		},
+		{
+			Method:  http.MethodGet,
+			Path:    "/announcements",
+			Handler: AdminListAnnouncementsHandler(svcCtx),
+		},
+		{
+			Method:  http.MethodPost,
+			Path:    "/announcements",
+			Handler: AdminCreateAnnouncementHandler(svcCtx),
+		},
+		{
+			Method:  http.MethodPost,
+			Path:    "/announcements/:id/publish",
+			Handler: AdminPublishAnnouncementHandler(svcCtx),
+		},
+		{
+			Method:  http.MethodGet,
+			Path:    "/security-settings",
+			Handler: AdminGetSecuritySettingHandler(svcCtx),
+		},
+		{
+			Method:  http.MethodPatch,
+			Path:    "/security-settings",
+			Handler: AdminUpdateSecuritySettingHandler(svcCtx),
+		},
+		{
+			Method:  http.MethodGet,
+			Path:    "/orders",
+			Handler: AdminListOrdersHandler(svcCtx),
+		},
+		{
+			Method:  http.MethodGet,
+			Path:    "/orders/:id",
+			Handler: AdminGetOrderHandler(svcCtx),
+		},
 	}
 	adminRoutes = rest.WithMiddlewares([]rest.Middleware{authMiddleware.RequireRoles("admin")}, adminRoutes...)
-	server.AddRoutes(adminRoutes, rest.WithPrefix("/api/v1/admin"))
+	adminPrefix := svcCtx.Config.Admin.RoutePrefix
+	adminBase := "/api/v1"
+	if adminPrefix != "" {
+		adminBase += "/" + adminPrefix
+	}
+	server.AddRoutes(adminRoutes, rest.WithPrefix(adminBase))
 
 	userRoutes := []rest.Route{
 		{
@@ -99,7 +160,37 @@ func RegisterHandlers(server *rest.Server, svcCtx *svc.ServiceContext) {
 			Path:    "/subscriptions/:id/template",
 			Handler: UserUpdateSubscriptionTemplateHandler(svcCtx),
 		},
+		{
+			Method:  http.MethodGet,
+			Path:    "/plans",
+			Handler: UserListPlansHandler(svcCtx),
+		},
+		{
+			Method:  http.MethodGet,
+			Path:    "/announcements",
+			Handler: UserListAnnouncementsHandler(svcCtx),
+		},
+		{
+			Method:  http.MethodGet,
+			Path:    "/account/balance",
+			Handler: UserBalanceHandler(svcCtx),
+		},
+		{
+			Method:  http.MethodPost,
+			Path:    "/orders",
+			Handler: UserCreateOrderHandler(svcCtx),
+		},
+		{
+			Method:  http.MethodGet,
+			Path:    "/orders",
+			Handler: UserListOrdersHandler(svcCtx),
+		},
+		{
+			Method:  http.MethodGet,
+			Path:    "/orders/:id",
+			Handler: UserGetOrderHandler(svcCtx),
+		},
 	}
-	userRoutes = rest.WithMiddlewares([]rest.Middleware{authMiddleware.RequireRoles("user")}, userRoutes...)
+	userRoutes = rest.WithMiddlewares([]rest.Middleware{authMiddleware.RequireRoles("user"), thirdPartyMiddleware.Handler}, userRoutes...)
 	server.AddRoutes(userRoutes, rest.WithPrefix("/api/v1/user"))
 }
