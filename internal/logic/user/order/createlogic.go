@@ -14,6 +14,7 @@ import (
 	"github.com/zero-net-panel/zero-net-panel/internal/security"
 	"github.com/zero-net-panel/zero-net-panel/internal/svc"
 	"github.com/zero-net-panel/zero-net-panel/internal/types"
+	"github.com/zero-net-panel/zero-net-panel/pkg/metrics"
 )
 
 // CreateLogic handles user order creation.
@@ -33,7 +34,17 @@ func NewCreateLogic(ctx context.Context, svcCtx *svc.ServiceContext) *CreateLogi
 }
 
 // Create issues an order for the given plan and settles payment via balance.
-func (l *CreateLogic) Create(req *types.UserCreateOrderRequest) (*types.UserOrderResponse, error) {
+func (l *CreateLogic) Create(req *types.UserCreateOrderRequest) (resp *types.UserOrderResponse, err error) {
+	start := time.Now()
+	paymentMethod := repository.PaymentMethodBalance
+	defer func() {
+		result := "success"
+		if err != nil {
+			result = "error"
+		}
+		metrics.ObserveOrderCreate(paymentMethod, result, time.Since(start))
+	}()
+
 	user, ok := security.UserFromContext(l.ctx)
 	if !ok {
 		return nil, repository.ErrUnauthorized
@@ -117,6 +128,8 @@ func (l *CreateLogic) Create(req *types.UserCreateOrderRequest) (*types.UserOrde
 			UpdatedAt:    now,
 		}
 
+		paymentMethod = orderModel.PaymentMethod
+
 		if totalCents == 0 {
 			orderModel.Status = repository.OrderStatusPaid
 			paidAt := now
@@ -190,11 +203,11 @@ func (l *CreateLogic) Create(req *types.UserCreateOrderRequest) (*types.UserOrde
 		txView = &summary
 	}
 
-	resp := types.UserOrderResponse{
+	resp = &types.UserOrderResponse{
 		Order:       detail,
 		Balance:     balanceView,
 		Transaction: txView,
 	}
 
-	return &resp, nil
+	return resp, nil
 }

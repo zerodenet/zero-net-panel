@@ -41,6 +41,7 @@ Auth:
 Metrics:
   Enable: true
   Path: /metrics
+  ListenOn: 0.0.0.0:9100
 
 Admin:
   RoutePrefix: admin

@@ -38,3 +38,4 @@ Auth:
 Metrics:
   Enable: true
   Path: /metrics
+  ListenOn: ""

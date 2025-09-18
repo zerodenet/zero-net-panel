@@ -11,6 +11,7 @@ import (
 	"github.com/zero-net-panel/zero-net-panel/internal/repository"
 	"github.com/zero-net-panel/zero-net-panel/internal/svc"
 	"github.com/zero-net-panel/zero-net-panel/internal/types"
+	"github.com/zero-net-panel/zero-net-panel/pkg/metrics"
 )
 
 // SyncLogic 触发节点内核同步。
@@ -30,11 +31,20 @@ func NewSyncLogic(ctx context.Context, svcCtx *svc.ServiceContext) *SyncLogic {
 }
 
 // Sync 执行同步流程。
-func (l *SyncLogic) Sync(req *types.AdminSyncNodeKernelRequest) (*types.AdminSyncNodeKernelResponse, error) {
+func (l *SyncLogic) Sync(req *types.AdminSyncNodeKernelRequest) (resp *types.AdminSyncNodeKernelResponse, err error) {
+	start := time.Now()
 	protocol := strings.ToLower(strings.TrimSpace(req.Protocol))
 	if protocol == "" {
 		protocol = l.svcCtx.Kernel.DefaultProtocol()
 	}
+
+	defer func() {
+		result := "success"
+		if err != nil {
+			result = "error"
+		}
+		metrics.ObserveNodeSync(protocol, result, time.Since(start))
+	}()
 
 	provider, err := l.svcCtx.Kernel.Provider(protocol)
 	if err != nil {
@@ -72,7 +82,7 @@ func (l *SyncLogic) Sync(req *types.AdminSyncNodeKernelRequest) (*types.AdminSyn
 		message = "同步完成（注意：返回时间与存储存在偏差）"
 	}
 
-	resp := &types.AdminSyncNodeKernelResponse{
+	resp = &types.AdminSyncNodeKernelResponse{
 		NodeID:   req.NodeID,
 		Protocol: stored.Protocol,
 		Revision: stored.Revision,

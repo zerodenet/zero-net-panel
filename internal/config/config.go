@@ -55,8 +55,36 @@ type AuthConfig struct {
 }
 
 type MetricsConfig struct {
-	Enable bool   `json:"enable" yaml:"Enable"`
-	Path   string `json:"path" yaml:"Path"`
+	Enable   bool   `json:"enable" yaml:"Enable"`
+	Path     string `json:"path" yaml:"Path"`
+	ListenOn string `json:"listenOn" yaml:"ListenOn"`
+}
+
+// Normalize trims the path/listener and applies defaults.
+func (m *MetricsConfig) Normalize() {
+	path := strings.TrimSpace(m.Path)
+	if path == "" {
+		path = "/metrics"
+	}
+	if !strings.HasPrefix(path, "/") {
+		path = "/" + path
+	}
+	m.Path = path
+
+	m.ListenOn = strings.TrimSpace(m.ListenOn)
+	if !m.Enable {
+		m.ListenOn = ""
+	}
+}
+
+// Enabled returns whether metrics export is enabled.
+func (m MetricsConfig) Enabled() bool {
+	return m.Enable
+}
+
+// Standalone reports whether metrics should be served on an independent listener.
+func (m MetricsConfig) Standalone() bool {
+	return m.Enable && m.ListenOn != ""
 }
 
 // AdminConfig 控制管理端路由相关配置。
@@ -125,8 +153,11 @@ func (g GRPCServerConfig) ReflectionEnabled() bool {
 
 // Normalize 将配置补齐默认值。
 func (c *Config) Normalize() {
+	c.Metrics.Normalize()
 	c.Admin.Normalize()
 	c.GRPC.Normalize()
+	c.RestConf.Middlewares.Prometheus = c.Metrics.Enabled()
+	c.RestConf.Middlewares.Metrics = c.Metrics.Enabled()
 }
 
 func boolPtr(v bool) *bool {

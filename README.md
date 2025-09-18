@@ -60,6 +60,27 @@ Zero Network Panel 旨在以 xboard 的功能体系为基线，提供面向节�
    若仅需 HTTP，可追加 `--disable-grpc`；亦可继续使用兼容入口：`go run ./cmd/api -f etc/znp-sqlite.yaml`
 4. 访问健康检查：`GET http://localhost:8888/api/v1/ping`
 
+## 监控与指标
+
+`Metrics` 配置块控制 Prometheus 指标的导出方式：
+
+```yaml
+Metrics:
+  Enable: true            # 是否开启指标采集
+  Path: /metrics          # 暴露指标的 HTTP 路径
+  ListenOn: 0.0.0.0:9100  # 可选：独立监听地址，留空则复用主 HTTP 服务
+```
+
+- 当 `ListenOn` 留空时，指标会随主服务一起暴露，例如 `curl http://127.0.0.1:8888/metrics`。
+- 指定 `ListenOn` 后，CLI 会额外启动独立的 Prometheus HTTP Server，并在终止或收到 `SIGTERM` 时优雅关闭，可通过 `curl http://127.0.0.1:9100/metrics` 校验。
+
+核心链路已接入以下指标：
+
+- **节点同步**：`znp_node_sync_operations_total`、`znp_node_sync_duration_seconds`，按协议与结果标签区分成功/失败。
+- **订单创建**：`znp_order_create_requests_total`、`znp_order_create_duration_seconds`，按支付方式与结果标签统计。
+
+可将对应地址加入 Prometheus `scrape_config` 采集，也可以通过 Grafana 等工具构建可视化看板。
+
 ### 默认账户
 - 管理员：`admin@example.com` / `P@ssw0rd!`
 - 高级会员：`user@example.com` / `P@ssw0rd!`
