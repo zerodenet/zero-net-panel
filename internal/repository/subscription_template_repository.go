@@ -378,8 +378,6 @@ func buildTemplateOrderClause(field, direction string) string {
 		column = "version"
 	case "created_at":
 		column = "created_at"
-	default:
-		column = "updated_at"
 	}
 
 	dir := "ASC"

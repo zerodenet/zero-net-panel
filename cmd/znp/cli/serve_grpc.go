@@ -34,7 +34,11 @@ func runGRPCServer(ctx context.Context, cfg config.Config, svcCtx *svc.ServiceCo
 	if err != nil {
 		return fmt.Errorf("start gRPC listener: %w", err)
 	}
-	defer lis.Close()
+	defer func() {
+		if cerr := lis.Close(); cerr != nil && !errors.Is(cerr, net.ErrClosed) {
+			fmt.Printf("failed to close gRPC listener: %v\n", cerr)
+		}
+	}()
 
 	server := grpc.NewServer()
 

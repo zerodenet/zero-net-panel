@@ -169,10 +169,13 @@ func readBody(r *http.Request) ([]byte, error) {
 	if r.Body == nil {
 		return []byte{}, nil
 	}
-	defer r.Body.Close()
 	data, err := io.ReadAll(r.Body)
+	closeErr := r.Body.Close()
 	if err != nil {
 		return nil, err
+	}
+	if closeErr != nil {
+		return nil, closeErr
 	}
 	return data, nil
 }

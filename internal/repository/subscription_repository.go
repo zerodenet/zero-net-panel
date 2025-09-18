@@ -189,8 +189,6 @@ func buildSubscriptionOrderClause(field, direction string) string {
 		column = "expires_at"
 	case "created_at":
 		column = "created_at"
-	default:
-		column = "updated_at"
 	}
 
 	dir := "ASC"

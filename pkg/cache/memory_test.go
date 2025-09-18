@@ -11,7 +11,11 @@ func TestMemoryCache(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	defer c.Close()
+	t.Cleanup(func() {
+		if cerr := c.Close(); cerr != nil {
+			t.Fatalf("close cache: %v", cerr)
+		}
+	})
 
 	ctx := context.Background()
 	type payload struct {

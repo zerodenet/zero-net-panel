@@ -63,7 +63,11 @@ func (p *HTTPDiscoveryProvider) FetchNodeConfig(ctx context.Context, nodeID stri
 	if err != nil {
 		return NodeConfig{}, err
 	}
-	defer resp.Body.Close()
+	defer func(body io.ReadCloser) {
+		if cerr := body.Close(); cerr != nil {
+			fmt.Printf("kernel http provider: close response body: %v\n", cerr)
+		}
+	}(resp.Body)
 
 	switch resp.StatusCode {
 	case http.StatusOK:
