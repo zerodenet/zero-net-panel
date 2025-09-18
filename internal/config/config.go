@@ -1,6 +1,7 @@
 package config
 
 import (
+	"strings"
 	"time"
 
 	"github.com/zeromicro/go-zero/rest"
@@ -12,12 +13,14 @@ import (
 type Config struct {
 	rest.RestConf
 
-	Project  ProjectConfig   `json:"project" yaml:"Project"`
-	Database database.Config `json:"database" yaml:"Database"`
-	Cache    cache.Config    `json:"cache" yaml:"Cache"`
-	Kernel   KernelConfig    `json:"kernel" yaml:"Kernel"`
-	Auth     AuthConfig      `json:"auth" yaml:"Auth"`
-	Metrics  MetricsConfig   `json:"metrics" yaml:"Metrics"`
+	Project  ProjectConfig    `json:"project" yaml:"Project"`
+	Database database.Config  `json:"database" yaml:"Database"`
+	Cache    cache.Config     `json:"cache" yaml:"Cache"`
+	Kernel   KernelConfig     `json:"kernel" yaml:"Kernel"`
+	Auth     AuthConfig       `json:"auth" yaml:"Auth"`
+	Metrics  MetricsConfig    `json:"metrics" yaml:"Metrics"`
+	Admin    AdminConfig      `json:"admin" yaml:"Admin"`
+	GRPC     GRPCServerConfig `json:"grpcServer" yaml:"GRPCServer"`
 }
 
 type ProjectConfig struct {
@@ -54,4 +57,78 @@ type AuthConfig struct {
 type MetricsConfig struct {
 	Enable bool   `json:"enable" yaml:"Enable"`
 	Path   string `json:"path" yaml:"Path"`
+}
+
+// AdminConfig 控制管理端路由相关配置。
+type AdminConfig struct {
+	RoutePrefix string `json:"routePrefix" yaml:"RoutePrefix"`
+}
+
+// Normalize 统一前缀写法并设置默认值。
+func (a *AdminConfig) Normalize() {
+	prefix := strings.TrimSpace(a.RoutePrefix)
+	prefix = strings.Trim(prefix, "/")
+	if prefix == "" {
+		prefix = "admin"
+	}
+	a.RoutePrefix = prefix
+}
+
+// APIBasePath 返回管理端挂载的完整 API 前缀。
+func (a AdminConfig) APIBasePath() string {
+	if a.RoutePrefix == "" {
+		return "/api/v1"
+	}
+	return "/api/v1/" + a.RoutePrefix
+}
+
+// GRPCServerConfig 控制内建 gRPC 服务监听配置。
+type GRPCServerConfig struct {
+	Enable     *bool  `json:"enable" yaml:"Enable"`
+	ListenOn   string `json:"listenOn" yaml:"ListenOn"`
+	Reflection *bool  `json:"reflection" yaml:"Reflection"`
+}
+
+// Normalize 设置默认监听地址与开关。
+func (g *GRPCServerConfig) Normalize() {
+	if g.Enable == nil {
+		g.Enable = boolPtr(true)
+	}
+	if g.Reflection == nil {
+		g.Reflection = boolPtr(true)
+	}
+	if g.Enabled() && strings.TrimSpace(g.ListenOn) == "" {
+		g.ListenOn = "0.0.0.0:8890"
+	}
+}
+
+// Enabled 返回 gRPC 服务是否启用（默认为 true）。
+func (g GRPCServerConfig) Enabled() bool {
+	if g.Enable == nil {
+		return true
+	}
+	return *g.Enable
+}
+
+// SetEnabled 修改 gRPC 启用状态。
+func (g *GRPCServerConfig) SetEnabled(enabled bool) {
+	g.Enable = boolPtr(enabled)
+}
+
+// ReflectionEnabled 返回是否开放 gRPC reflection（默认为 true）。
+func (g GRPCServerConfig) ReflectionEnabled() bool {
+	if g.Reflection == nil {
+		return true
+	}
+	return *g.Reflection
+}
+
+// Normalize 将配置补齐默认值。
+func (c *Config) Normalize() {
+	c.Admin.Normalize()
+	c.GRPC.Normalize()
+}
+
+func boolPtr(v bool) *bool {
+	return &v
 }

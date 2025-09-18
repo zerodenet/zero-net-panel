@@ -42,7 +42,7 @@ func (l *PreviewLogic) Preview(req *types.UserSubscriptionPreviewRequest) (*type
 	if err != nil {
 		return nil, err
 	}
- 
+
 	if sub.UserID != user.ID {
 		return nil, repository.ErrForbidden
 	}
