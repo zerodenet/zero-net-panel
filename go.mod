@@ -1,6 +1,6 @@
 module github.com/zero-net-panel/zero-net-panel
 
-go 1.21
+go 1.22
 
 require (
 	github.com/golang-jwt/jwt/v5 v5.3.0
