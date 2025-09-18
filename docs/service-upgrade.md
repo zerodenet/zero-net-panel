@@ -2,6 +2,13 @@
 
 本指南描述 Zero Net Panel 在迭代过程中的升级策略、注意事项与数据库迁移流程，帮助运营人员安全上线新版本。
 
+## 发行说明
+
+### Go 1.22 升级
+
+- **破坏性变更**：构建与运行时环境需升级至 Go 1.22 或更高版本，Go 1.21 将无法通过新的 CI/Release 工作流。升级后请本地执行 `go mod tidy`、`go fmt`, `go vet`, `go test ./...` 及 `golangci-lint` 以确保兼容。
+- **依赖验证**：现有依赖（`github.com/zeromicro/go-zero v1.5.3`、`google.golang.org/grpc v1.55.0` 等）已在 Go 1.22 下通过编译与测试，无需额外调整。如需自定义升级，可参考官方发行说明确认兼容性。
+
 ## 版本策略
 
 - **分支规范**：遵循 `develop` 作为日常开发分支，所有功能分支先合并至 `develop`，经验证后再进入 `main`。

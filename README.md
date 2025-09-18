@@ -78,7 +78,7 @@ Zero Network Panel 旨在以 xboard 的功能体系为基线，提供面向节�
 所有子命令均可通过 `--config`/`-f` 指定配置文件，`serve` 亦支持 `--migrate-to` 控制启动前的迁移目标版本。
 
 ## 开发工具
-- Go 1.21+
+- Go 1.22+
 - go-zero 1.5+
 - GORM 1.25+
 - 可选：Redis、Docker、golangci-lint
