@@ -5,6 +5,20 @@ import (
 
 	"github.com/zeromicro/go-zero/rest"
 
+	adminAnnouncements "github.com/zero-net-panel/zero-net-panel/internal/handler/admin/announcements"
+	adminDashboard "github.com/zero-net-panel/zero-net-panel/internal/handler/admin/dashboard"
+	adminNodes "github.com/zero-net-panel/zero-net-panel/internal/handler/admin/nodes"
+	adminOrders "github.com/zero-net-panel/zero-net-panel/internal/handler/admin/orders"
+	adminPlans "github.com/zero-net-panel/zero-net-panel/internal/handler/admin/plans"
+	adminSecurity "github.com/zero-net-panel/zero-net-panel/internal/handler/admin/security"
+	adminTemplates "github.com/zero-net-panel/zero-net-panel/internal/handler/admin/templates"
+	authhandlers "github.com/zero-net-panel/zero-net-panel/internal/handler/auth"
+	sharedhandlers "github.com/zero-net-panel/zero-net-panel/internal/handler/shared"
+	userAccount "github.com/zero-net-panel/zero-net-panel/internal/handler/user/account"
+	userAnnouncements "github.com/zero-net-panel/zero-net-panel/internal/handler/user/announcements"
+	userOrders "github.com/zero-net-panel/zero-net-panel/internal/handler/user/orders"
+	userPlans "github.com/zero-net-panel/zero-net-panel/internal/handler/user/plans"
+	userSubscriptions "github.com/zero-net-panel/zero-net-panel/internal/handler/user/subscriptions"
 	"github.com/zero-net-panel/zero-net-panel/internal/middleware"
 	"github.com/zero-net-panel/zero-net-panel/internal/svc"
 )
@@ -12,12 +26,13 @@ import (
 func RegisterHandlers(server *rest.Server, svcCtx *svc.ServiceContext) {
 	authMiddleware := middleware.NewAuthMiddleware(svcCtx.Auth, svcCtx.Repositories.User)
 	thirdPartyMiddleware := middleware.NewThirdPartyMiddleware(svcCtx.Repositories.Security)
+
 	server.AddRoutes(
 		[]rest.Route{
 			{
 				Method:  http.MethodGet,
 				Path:    "/ping",
-				Handler: PingHandler(svcCtx),
+				Handler: sharedhandlers.PingHandler(svcCtx),
 			},
 		},
 		rest.WithPrefix("/api/v1"),
@@ -28,12 +43,12 @@ func RegisterHandlers(server *rest.Server, svcCtx *svc.ServiceContext) {
 			{
 				Method:  http.MethodPost,
 				Path:    "/login",
-				Handler: AuthLoginHandler(svcCtx),
+				Handler: authhandlers.AuthLoginHandler(svcCtx),
 			},
 			{
 				Method:  http.MethodPost,
 				Path:    "/refresh",
-				Handler: AuthRefreshHandler(svcCtx),
+				Handler: authhandlers.AuthRefreshHandler(svcCtx),
 			},
 		},
 		rest.WithPrefix("/api/v1/auth"),
@@ -43,97 +58,97 @@ func RegisterHandlers(server *rest.Server, svcCtx *svc.ServiceContext) {
 		{
 			Method:  http.MethodGet,
 			Path:    "/dashboard",
-			Handler: AdminDashboardHandler(svcCtx),
+			Handler: adminDashboard.AdminDashboardHandler(svcCtx),
 		},
 		{
 			Method:  http.MethodGet,
 			Path:    "/nodes",
-			Handler: AdminListNodesHandler(svcCtx),
+			Handler: adminNodes.AdminListNodesHandler(svcCtx),
 		},
 		{
 			Method:  http.MethodGet,
 			Path:    "/nodes/:id/kernels",
-			Handler: AdminNodeKernelsHandler(svcCtx),
+			Handler: adminNodes.AdminNodeKernelsHandler(svcCtx),
 		},
 		{
 			Method:  http.MethodPost,
 			Path:    "/nodes/:id/kernels/sync",
-			Handler: AdminSyncNodeKernelHandler(svcCtx),
+			Handler: adminNodes.AdminSyncNodeKernelHandler(svcCtx),
 		},
 		{
 			Method:  http.MethodGet,
 			Path:    "/subscription-templates",
-			Handler: AdminListSubscriptionTemplatesHandler(svcCtx),
+			Handler: adminTemplates.AdminListSubscriptionTemplatesHandler(svcCtx),
 		},
 		{
 			Method:  http.MethodPost,
 			Path:    "/subscription-templates",
-			Handler: AdminCreateSubscriptionTemplateHandler(svcCtx),
+			Handler: adminTemplates.AdminCreateSubscriptionTemplateHandler(svcCtx),
 		},
 		{
 			Method:  http.MethodPatch,
 			Path:    "/subscription-templates/:id",
-			Handler: AdminUpdateSubscriptionTemplateHandler(svcCtx),
+			Handler: adminTemplates.AdminUpdateSubscriptionTemplateHandler(svcCtx),
 		},
 		{
 			Method:  http.MethodPost,
 			Path:    "/subscription-templates/:id/publish",
-			Handler: AdminPublishSubscriptionTemplateHandler(svcCtx),
+			Handler: adminTemplates.AdminPublishSubscriptionTemplateHandler(svcCtx),
 		},
 		{
 			Method:  http.MethodGet,
 			Path:    "/subscription-templates/:id/history",
-			Handler: AdminSubscriptionTemplateHistoryHandler(svcCtx),
+			Handler: adminTemplates.AdminSubscriptionTemplateHistoryHandler(svcCtx),
 		},
 		{
 			Method:  http.MethodGet,
 			Path:    "/plans",
-			Handler: AdminListPlansHandler(svcCtx),
+			Handler: adminPlans.AdminListPlansHandler(svcCtx),
 		},
 		{
 			Method:  http.MethodPost,
 			Path:    "/plans",
-			Handler: AdminCreatePlanHandler(svcCtx),
+			Handler: adminPlans.AdminCreatePlanHandler(svcCtx),
 		},
 		{
 			Method:  http.MethodPatch,
 			Path:    "/plans/:id",
-			Handler: AdminUpdatePlanHandler(svcCtx),
+			Handler: adminPlans.AdminUpdatePlanHandler(svcCtx),
 		},
 		{
 			Method:  http.MethodGet,
 			Path:    "/announcements",
-			Handler: AdminListAnnouncementsHandler(svcCtx),
+			Handler: adminAnnouncements.AdminListAnnouncementsHandler(svcCtx),
 		},
 		{
 			Method:  http.MethodPost,
 			Path:    "/announcements",
-			Handler: AdminCreateAnnouncementHandler(svcCtx),
+			Handler: adminAnnouncements.AdminCreateAnnouncementHandler(svcCtx),
 		},
 		{
 			Method:  http.MethodPost,
 			Path:    "/announcements/:id/publish",
-			Handler: AdminPublishAnnouncementHandler(svcCtx),
+			Handler: adminAnnouncements.AdminPublishAnnouncementHandler(svcCtx),
 		},
 		{
 			Method:  http.MethodGet,
 			Path:    "/security-settings",
-			Handler: AdminGetSecuritySettingHandler(svcCtx),
+			Handler: adminSecurity.AdminGetSecuritySettingHandler(svcCtx),
 		},
 		{
 			Method:  http.MethodPatch,
 			Path:    "/security-settings",
-			Handler: AdminUpdateSecuritySettingHandler(svcCtx),
+			Handler: adminSecurity.AdminUpdateSecuritySettingHandler(svcCtx),
 		},
 		{
 			Method:  http.MethodGet,
 			Path:    "/orders",
-			Handler: AdminListOrdersHandler(svcCtx),
+			Handler: adminOrders.AdminListOrdersHandler(svcCtx),
 		},
 		{
 			Method:  http.MethodGet,
 			Path:    "/orders/:id",
-			Handler: AdminGetOrderHandler(svcCtx),
+			Handler: adminOrders.AdminGetOrderHandler(svcCtx),
 		},
 	}
 	adminRoutes = rest.WithMiddlewares([]rest.Middleware{authMiddleware.RequireRoles("admin")}, adminRoutes...)
@@ -148,47 +163,47 @@ func RegisterHandlers(server *rest.Server, svcCtx *svc.ServiceContext) {
 		{
 			Method:  http.MethodGet,
 			Path:    "/subscriptions",
-			Handler: UserListSubscriptionsHandler(svcCtx),
+			Handler: userSubscriptions.UserListSubscriptionsHandler(svcCtx),
 		},
 		{
 			Method:  http.MethodGet,
 			Path:    "/subscriptions/:id/preview",
-			Handler: UserSubscriptionPreviewHandler(svcCtx),
+			Handler: userSubscriptions.UserSubscriptionPreviewHandler(svcCtx),
 		},
 		{
 			Method:  http.MethodPost,
 			Path:    "/subscriptions/:id/template",
-			Handler: UserUpdateSubscriptionTemplateHandler(svcCtx),
+			Handler: userSubscriptions.UserUpdateSubscriptionTemplateHandler(svcCtx),
 		},
 		{
 			Method:  http.MethodGet,
 			Path:    "/plans",
-			Handler: UserListPlansHandler(svcCtx),
+			Handler: userPlans.UserListPlansHandler(svcCtx),
 		},
 		{
 			Method:  http.MethodGet,
 			Path:    "/announcements",
-			Handler: UserListAnnouncementsHandler(svcCtx),
+			Handler: userAnnouncements.UserListAnnouncementsHandler(svcCtx),
 		},
 		{
 			Method:  http.MethodGet,
 			Path:    "/account/balance",
-			Handler: UserBalanceHandler(svcCtx),
+			Handler: userAccount.UserBalanceHandler(svcCtx),
 		},
 		{
 			Method:  http.MethodPost,
 			Path:    "/orders",
-			Handler: UserCreateOrderHandler(svcCtx),
+			Handler: userOrders.UserCreateOrderHandler(svcCtx),
 		},
 		{
 			Method:  http.MethodGet,
 			Path:    "/orders",
-			Handler: UserListOrdersHandler(svcCtx),
+			Handler: userOrders.UserListOrdersHandler(svcCtx),
 		},
 		{
 			Method:  http.MethodGet,
 			Path:    "/orders/:id",
-			Handler: UserGetOrderHandler(svcCtx),
+			Handler: userOrders.UserGetOrderHandler(svcCtx),
 		},
 	}
 	userRoutes = rest.WithMiddlewares([]rest.Middleware{authMiddleware.RequireRoles("user"), thirdPartyMiddleware.Handler}, userRoutes...)

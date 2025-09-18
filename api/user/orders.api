@@ -1,0 +1,52 @@
+syntax = "v1"
+
+import "shared/types.api"
+
+@server (
+    name: znp.api
+    prefix: /api/v1
+    group: user/orders
+)
+service znp {
+    @doc "Create order from plan"
+    @handler UserCreateOrder
+    post /user/orders(UserCreateOrderRequest) returns (UserOrderResponse)
+
+    @doc "List user orders"
+    @handler UserListOrders
+    get /user/orders(UserOrderListRequest) returns (UserOrderListResponse)
+
+    @doc "Get user order detail"
+    @handler UserGetOrder
+    get /user/orders/:id(UserGetOrderRequest) returns (UserOrderResponse)
+}
+
+type UserCreateOrderRequest {
+    plan_id uint64
+    quantity int
+}
+
+type UserOrderListRequest {
+    page int
+    per_page int
+    status string
+    payment_method string
+    number string
+    sort string
+    direction string
+}
+
+type UserOrderListResponse {
+    orders []OrderDetail
+    pagination PaginationMeta
+}
+
+type UserOrderResponse {
+    order OrderDetail
+    balance BalanceSnapshot
+    transaction *BalanceTransactionSummary
+}
+
+type UserGetOrderRequest {
+    id uint64
+}

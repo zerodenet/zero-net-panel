@@ -1,0 +1,19 @@
+syntax = "v1"
+
+@server (
+    name: znp.api
+    prefix: /api/v1
+    group: shared
+)
+service znp {
+    @doc "Service health check"
+    @handler Ping
+    get /ping() returns (PingResponse)
+}
+
+type PingResponse {
+    status string
+    service string
+    version string
+    timestamp int64
+}

@@ -1,0 +1,39 @@
+syntax = "v1"
+
+@server (
+    name: znp.api
+    prefix: /api/v1
+    group: admin/security
+)
+service znp {
+    @doc "Get third-party security settings"
+    @handler AdminGetSecuritySetting
+    get /admin/security-settings() returns (AdminSecuritySettingResponse)
+
+    @doc "Update third-party security settings"
+    @handler AdminUpdateSecuritySetting
+    patch /admin/security-settings(AdminUpdateSecuritySettingRequest) returns (AdminSecuritySettingResponse)
+}
+
+type AdminSecuritySettingResponse {
+    setting SecuritySetting
+}
+
+type SecuritySetting {
+    id uint64
+    third_party_api_enabled bool
+    api_key string
+    api_secret string
+    encryption_algorithm string
+    nonce_ttl_seconds int
+    created_at int64
+    updated_at int64
+}
+
+type AdminUpdateSecuritySettingRequest {
+    third_party_api_enabled bool(optional)
+    api_key string(optional)
+    api_secret string(optional)
+    encryption_algorithm string(optional)
+    nonce_ttl_seconds int(optional)
+}

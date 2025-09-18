@@ -1,29 +1,30 @@
-package handler
+package announcements
 
 import (
 	"net/http"
 
 	"github.com/zeromicro/go-zero/rest/httpx"
 
+	handlercommon "github.com/zero-net-panel/zero-net-panel/internal/handler/common"
 	adminannouncements "github.com/zero-net-panel/zero-net-panel/internal/logic/admin/announcements"
 	"github.com/zero-net-panel/zero-net-panel/internal/repository"
 	"github.com/zero-net-panel/zero-net-panel/internal/svc"
 	"github.com/zero-net-panel/zero-net-panel/internal/types"
 )
 
-// AdminListAnnouncementsHandler 公告列表。
+// AdminListAnnouncementsHandler returns announcement records for administrators.
 func AdminListAnnouncementsHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req types.AdminListAnnouncementsRequest
 		if err := httpx.Parse(r, &req); err != nil {
-			respondError(w, r, repository.ErrInvalidArgument)
+			handlercommon.RespondError(w, r, repository.ErrInvalidArgument)
 			return
 		}
 
 		logic := adminannouncements.NewListLogic(r.Context(), svcCtx)
 		resp, err := logic.List(&req)
 		if err != nil {
-			respondError(w, r, err)
+			handlercommon.RespondError(w, r, err)
 			return
 		}
 
@@ -31,19 +32,19 @@ func AdminListAnnouncementsHandler(svcCtx *svc.ServiceContext) http.HandlerFunc 
 	}
 }
 
-// AdminCreateAnnouncementHandler 创建公告。
+// AdminCreateAnnouncementHandler creates a new announcement.
 func AdminCreateAnnouncementHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req types.AdminCreateAnnouncementRequest
 		if err := httpx.Parse(r, &req); err != nil {
-			respondError(w, r, repository.ErrInvalidArgument)
+			handlercommon.RespondError(w, r, repository.ErrInvalidArgument)
 			return
 		}
 
 		logic := adminannouncements.NewCreateLogic(r.Context(), svcCtx)
 		resp, err := logic.Create(&req)
 		if err != nil {
-			respondError(w, r, err)
+			handlercommon.RespondError(w, r, err)
 			return
 		}
 
@@ -51,19 +52,19 @@ func AdminCreateAnnouncementHandler(svcCtx *svc.ServiceContext) http.HandlerFunc
 	}
 }
 
-// AdminPublishAnnouncementHandler 发布公告。
+// AdminPublishAnnouncementHandler publishes a pending announcement.
 func AdminPublishAnnouncementHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req types.AdminPublishAnnouncementRequest
 		if err := httpx.Parse(r, &req); err != nil {
-			respondError(w, r, repository.ErrInvalidArgument)
+			handlercommon.RespondError(w, r, repository.ErrInvalidArgument)
 			return
 		}
 
 		logic := adminannouncements.NewPublishLogic(r.Context(), svcCtx)
 		resp, err := logic.Publish(&req)
 		if err != nil {
-			respondError(w, r, err)
+			handlercommon.RespondError(w, r, err)
 			return
 		}
 

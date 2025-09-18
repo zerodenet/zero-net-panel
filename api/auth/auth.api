@@ -1,0 +1,52 @@
+syntax = "v1"
+
+@server (
+    name: znp.api
+    prefix: /api/v1
+    group: auth
+)
+service znp {
+    @doc "Authenticate user and issue token"
+    @handler AuthLogin
+    post /auth/login(AuthLoginRequest) returns (AuthLoginResponse)
+
+    @doc "Refresh access token"
+    @handler AuthRefresh
+    post /auth/refresh(AuthRefreshRequest) returns (AuthRefreshResponse)
+}
+
+type AuthLoginRequest {
+    email string
+    password string
+}
+
+type AuthRefreshRequest {
+    refresh_token string
+}
+
+type AuthenticatedUser {
+    id uint64
+    email string
+    display_name string
+    roles []string
+    created_at int64
+    updated_at int64
+}
+
+type AuthLoginResponse {
+    access_token string
+    refresh_token string
+    token_type string
+    expires_in int64
+    refresh_expires_in int64
+    user AuthenticatedUser
+}
+
+type AuthRefreshResponse {
+    access_token string
+    refresh_token string
+    token_type string
+    expires_in int64
+    refresh_expires_in int64
+    user AuthenticatedUser
+}

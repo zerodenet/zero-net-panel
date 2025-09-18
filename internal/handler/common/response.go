@@ -1,4 +1,4 @@
-package handler
+package common
 
 import (
 	"context"
@@ -11,7 +11,8 @@ import (
 	"github.com/zero-net-panel/zero-net-panel/pkg/kernel"
 )
 
-func respondError(w http.ResponseWriter, r *http.Request, err error) {
+// RespondError writes a JSON error payload with a status derived from known domain errors.
+func RespondError(w http.ResponseWriter, r *http.Request, err error) {
 	if err == nil {
 		httpx.OkJsonCtx(r.Context(), w, map[string]string{"message": "ok"})
 		return

@@ -1,0 +1,83 @@
+syntax = "v1"
+
+import "shared/types.api"
+
+@server (
+    name: znp.api
+    prefix: /api/v1
+    group: admin/nodes
+)
+service znp {
+    @doc "List edge nodes"
+    @handler AdminListNodes
+    get /admin/nodes(AdminListNodesRequest) returns (AdminNodeListResponse)
+
+    @doc "Get node kernel endpoints"
+    @handler AdminNodeKernels
+    get /admin/nodes/:id/kernels(AdminNodeKernelPath) returns (AdminNodeKernelResponse)
+
+    @doc "Sync node kernel configuration"
+    @handler AdminSyncNodeKernel
+    post /admin/nodes/:id/kernels/sync(AdminSyncNodeKernelRequest) returns (AdminSyncNodeKernelResponse)
+}
+
+type AdminListNodesRequest {
+    page int(optional)
+    per_page int(optional)
+    sort string(optional)
+    direction string(optional)
+    q string(optional)
+    status string(optional)
+    protocol string(optional)
+}
+
+type NodeSummary {
+    id uint64
+    name string
+    region string
+    country string
+    isp string
+    status string
+    tags []string
+    protocols []string
+    capacity_mbps int
+    description string
+    last_synced_at int64
+    updated_at int64
+}
+
+type AdminNodeListResponse {
+    nodes []NodeSummary
+    pagination PaginationMeta
+}
+
+type AdminNodeKernelPath {
+    id uint64
+}
+
+type NodeKernelSummary {
+    protocol string
+    endpoint string
+    revision string
+    status string
+    config map[string]any
+    last_synced_at int64
+}
+
+type AdminNodeKernelResponse {
+    node_id uint64
+    kernels []NodeKernelSummary
+}
+
+type AdminSyncNodeKernelRequest {
+    id uint64
+    protocol string(optional)
+}
+
+type AdminSyncNodeKernelResponse {
+    node_id uint64
+    protocol string
+    revision string
+    synced_at int64
+    message string
+}

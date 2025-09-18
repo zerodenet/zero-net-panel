@@ -1,0 +1,73 @@
+syntax = "v1"
+
+import "shared/types.api"
+
+@server (
+    name: znp.api
+    prefix: /api/v1
+    group: admin/announcements
+)
+service znp {
+    @doc "List announcements"
+    @handler AdminListAnnouncements
+    get /admin/announcements(AdminListAnnouncementsRequest) returns (AdminAnnouncementListResponse)
+
+    @doc "Create announcement"
+    @handler AdminCreateAnnouncement
+    post /admin/announcements(AdminCreateAnnouncementRequest) returns (AnnouncementSummary)
+
+    @doc "Publish announcement"
+    @handler AdminPublishAnnouncement
+    post /admin/announcements/:id/publish(AdminPublishAnnouncementRequest) returns (AnnouncementSummary)
+}
+
+type AdminListAnnouncementsRequest {
+    page int(optional)
+    per_page int(optional)
+    status string(optional)
+    category string(optional)
+    audience string(optional)
+    q string(optional)
+    sort string(optional)
+    direction string(optional)
+}
+
+type AdminCreateAnnouncementRequest {
+    title string
+    content string
+    category string(optional)
+    audience string(optional)
+    is_pinned bool(optional)
+    priority int(optional)
+    created_by string(optional)
+}
+
+type AdminPublishAnnouncementRequest {
+    id uint64
+    visible_to int64(optional)
+    operator string(optional)
+}
+
+type AnnouncementSummary {
+    id uint64
+    title string
+    content string
+    category string
+    status string
+    audience string
+    is_pinned bool
+    priority int
+    visible_from int64
+    visible_to int64(optional)
+    published_at int64(optional)
+    published_by string
+    created_by string
+    updated_by string
+    created_at int64
+    updated_at int64
+}
+
+type AdminAnnouncementListResponse {
+    announcements []AnnouncementSummary
+    pagination PaginationMeta
+}

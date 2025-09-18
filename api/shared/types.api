@@ -1,0 +1,60 @@
+syntax = "v1"
+
+type PaginationMeta {
+    page int
+    per_page int
+    total_count int64
+    has_next bool
+    has_prev bool
+}
+
+type BalanceTransactionSummary {
+    id uint64
+    type string
+    amount_cents int64
+    currency string
+    balance_after_cents int64
+    reference string
+    description string
+    metadata map[string]any
+    created_at int64
+}
+
+type BalanceSnapshot {
+    user_id uint64
+    balance_cents int64
+    currency string
+    updated_at int64
+}
+
+type OrderItem {
+    id uint64
+    order_id uint64
+    item_type string
+    item_id uint64
+    name string
+    quantity int
+    unit_price_cents int64
+    currency string
+    subtotal_cents int64
+    metadata map[string]any
+    created_at int64
+}
+
+type OrderDetail {
+    id uint64
+    number string
+    user_id uint64
+    status string
+    total_cents int64
+    currency string
+    payment_method string
+    plan_id *uint64
+    plan_snapshot map[string]any
+    metadata map[string]any
+    paid_at *int64
+    cancelled_at *int64
+    created_at int64
+    updated_at int64
+    items []OrderItem
+}

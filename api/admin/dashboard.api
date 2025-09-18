@@ -1,0 +1,26 @@
+syntax = "v1"
+
+@server (
+    name: znp.api
+    prefix: /api/v1
+    group: admin/dashboard
+)
+service znp {
+    @doc "List admin console modules"
+    @handler AdminDashboard
+    // NOTE: actual mount path honours Admin.RoutePrefix (default: /admin)
+    get /admin/dashboard() returns (AdminDashboardResponse)
+}
+
+type AdminDashboardResponse {
+    modules []AdminModule
+}
+
+type AdminModule {
+    key string
+    name string
+    description string
+    icon string
+    route string
+    permissions []string
+}
