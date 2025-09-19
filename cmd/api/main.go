@@ -23,7 +23,7 @@ func main() {
 	}
 	cfg.Normalize()
 
-	if err := bootstrap.PrepareDatabase(context.Background(), cfg, bootstrap.DatabaseOptions{AutoMigrate: true, TargetVersion: 0}); err != nil {
+	if _, err := bootstrap.PrepareDatabase(context.Background(), cfg, bootstrap.DatabaseOptions{AutoMigrate: true, TargetVersion: 0}); err != nil {
 		log.Fatalf("failed to prepare database: %v", err)
 	}
 

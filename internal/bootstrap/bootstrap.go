@@ -7,6 +7,7 @@ import (
 
 	"gorm.io/gorm"
 
+	"github.com/zero-net-panel/zero-net-panel/internal/bootstrap/migrations"
 	"github.com/zero-net-panel/zero-net-panel/internal/bootstrap/seed"
 	"github.com/zero-net-panel/zero-net-panel/internal/config"
 	"github.com/zero-net-panel/zero-net-panel/pkg/database"
@@ -17,35 +18,40 @@ type DatabaseOptions struct {
 	AutoMigrate   bool
 	SeedDemo      bool
 	TargetVersion uint64
+	AllowRollback bool
 }
 
 // PrepareDatabase ensures that migrations and seed data are applied before the
 // service starts. It opens a dedicated connection, applies the requested
 // operations and closes the connection afterwards.
-func PrepareDatabase(ctx context.Context, cfg config.Config, opts DatabaseOptions) error {
+func PrepareDatabase(ctx context.Context, cfg config.Config, opts DatabaseOptions) (migrations.Result, error) {
+	var result migrations.Result
+
 	db, closeFn, err := database.NewGorm(cfg.Database)
 	if err != nil {
-		return fmt.Errorf("connect database: %w", err)
+		return result, fmt.Errorf("connect database: %w", err)
 	}
 	if db == nil {
 		closeFn()
-		return errors.New("database configuration is required")
+		return result, errors.New("database configuration is required")
 	}
 	defer closeFn()
 
 	if opts.AutoMigrate {
-		if err := ApplyMigrations(ctx, db, opts.TargetVersion); err != nil {
-			return err
+		var applyErr error
+		result, applyErr = ApplyMigrations(ctx, db, opts.TargetVersion, opts.AllowRollback)
+		if applyErr != nil {
+			return result, applyErr
 		}
 	}
 
 	if opts.SeedDemo {
 		if err := seed.Run(ctx, db); err != nil {
-			return err
+			return result, err
 		}
 	}
 
-	return nil
+	return result, nil
 }
 
 // WithTransaction executes fn within a transaction respecting the context.
