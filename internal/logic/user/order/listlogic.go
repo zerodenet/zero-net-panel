@@ -71,10 +71,16 @@ func (l *ListLogic) List(req *types.UserOrderListRequest) (*types.UserOrderListR
 		return nil, err
 	}
 
+	refundsMap, err := l.svcCtx.Repositories.Order.ListRefunds(l.ctx, ids)
+	if err != nil {
+		return nil, err
+	}
+
 	entries := make([]types.OrderDetail, 0, len(orders))
 	for _, order := range orders {
 		items := itemsMap[order.ID]
-		entries = append(entries, orderutil.ToOrderDetail(order, items))
+		refunds := refundsMap[order.ID]
+		entries = append(entries, orderutil.ToOrderDetail(order, items, refunds))
 	}
 
 	pagination := types.PaginationMeta{

@@ -569,9 +569,23 @@ type OrderDetail struct {
 	Metadata      map[string]any `json:"metadata,omitempty"`
 	PaidAt        *int64         `json:"paid_at,omitempty"`
 	CancelledAt   *int64         `json:"cancelled_at,omitempty"`
+	RefundedCents int64          `json:"refunded_cents"`
+	RefundedAt    *int64         `json:"refunded_at,omitempty"`
 	CreatedAt     int64          `json:"created_at"`
 	UpdatedAt     int64          `json:"updated_at"`
 	Items         []OrderItem    `json:"items"`
+	Refunds       []OrderRefund  `json:"refunds"`
+}
+
+// OrderRefund 订单退款记录。
+type OrderRefund struct {
+	ID          uint64         `json:"id"`
+	OrderID     uint64         `json:"order_id"`
+	AmountCents int64          `json:"amount_cents"`
+	Reason      string         `json:"reason"`
+	Reference   string         `json:"reference"`
+	Metadata    map[string]any `json:"metadata"`
+	CreatedAt   int64          `json:"created_at"`
 }
 
 // UserCreateOrderRequest 创建订单请求。
@@ -607,6 +621,12 @@ type UserOrderResponse struct {
 // UserGetOrderRequest 用户订单详情请求。
 type UserGetOrderRequest struct {
 	OrderID uint64 `path:"id"`
+}
+
+// UserCancelOrderRequest 用户取消订单请求。
+type UserCancelOrderRequest struct {
+	OrderID uint64 `path:"id"`
+	Reason  string `json:"reason"`
 }
 
 // AdminListOrdersRequest 管理端订单列表查询。
@@ -648,4 +668,32 @@ type AdminGetOrderRequest struct {
 // AdminOrderResponse 管理端订单详情响应。
 type AdminOrderResponse struct {
 	Order AdminOrderDetail `json:"order"`
+}
+
+// AdminMarkOrderPaidRequest 管理端手动标记支付请求。
+type AdminMarkOrderPaidRequest struct {
+	OrderID       uint64 `path:"id"`
+	PaymentMethod string `json:"payment_method"`
+	Note          string `json:"note"`
+	Reference     string `json:"reference"`
+	ChargeBalance bool   `json:"charge_balance"`
+	PaidAt        *int64 `json:"paid_at"`
+}
+
+// AdminCancelOrderRequest 管理端手动取消订单请求。
+type AdminCancelOrderRequest struct {
+	OrderID   uint64 `path:"id"`
+	Reason    string `json:"reason"`
+	Note      string `json:"note"`
+	AllowPaid bool   `json:"allow_paid"`
+}
+
+// AdminRefundOrderRequest 管理端订单退款请求。
+type AdminRefundOrderRequest struct {
+	OrderID       uint64         `path:"id"`
+	AmountCents   int64          `json:"amount_cents"`
+	Reason        string         `json:"reason"`
+	Reference     string         `json:"reference"`
+	Metadata      map[string]any `json:"metadata"`
+	CreditBalance bool           `json:"credit_balance"`
 }
