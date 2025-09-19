@@ -12,6 +12,10 @@ service znp {
     @handler UserCreateOrder
     post /user/orders(UserCreateOrderRequest) returns (UserOrderResponse)
 
+    @doc "Cancel user order"
+    @handler UserCancelOrder
+    post /user/orders/:id/cancel(UserCancelOrderRequest) returns (UserOrderResponse)
+
     @doc "List user orders"
     @handler UserListOrders
     get /user/orders(UserOrderListRequest) returns (UserOrderListResponse)
@@ -49,4 +53,9 @@ type UserOrderResponse {
 
 type UserGetOrderRequest {
     id uint64
+}
+
+type UserCancelOrderRequest {
+    id uint64
+    reason string
 }
