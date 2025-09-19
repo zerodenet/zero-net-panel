@@ -23,7 +23,7 @@ func ToOrderItem(item repository.OrderItem) types.OrderItem {
 }
 
 // ToOrderDetail hydrates an order with its items.
-func ToOrderDetail(order repository.Order, items []repository.OrderItem) types.OrderDetail {
+func ToOrderDetail(order repository.Order, items []repository.OrderItem, refunds ...[]repository.OrderRefund) types.OrderDetail {
 	detail := types.OrderDetail{
 		ID:            order.ID,
 		Number:        order.Number,
@@ -35,6 +35,7 @@ func ToOrderDetail(order repository.Order, items []repository.OrderItem) types.O
 		PaymentMethod: order.PaymentMethod,
 		PlanSnapshot:  order.PlanSnapshot,
 		Metadata:      order.Metadata,
+		RefundedCents: order.RefundedCents,
 		CreatedAt:     order.CreatedAt.UTC().Unix(),
 		UpdatedAt:     order.UpdatedAt.UTC().Unix(),
 	}
@@ -68,6 +69,19 @@ func ToOrderDetail(order repository.Order, items []repository.OrderItem) types.O
 		detail.Items = append(detail.Items, ToOrderItem(item))
 	}
 	return detail
+}
+
+// ToOrderRefund converts repository refund into API representation.
+func ToOrderRefund(refund repository.OrderRefund) types.OrderRefund {
+	return types.OrderRefund{
+		ID:          refund.ID,
+		OrderID:     refund.OrderID,
+		AmountCents: refund.AmountCents,
+		Reason:      refund.Reason,
+		Reference:   refund.Reference,
+		Metadata:    refund.Metadata,
+		CreatedAt:   refund.CreatedAt.UTC().Unix(),
+	}
 }
 
 // ToBalanceSnapshot converts repository balance into API snapshot.

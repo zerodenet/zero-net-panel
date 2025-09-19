@@ -8,14 +8,19 @@ import (
 	"time"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 const (
-	OrderStatusPending   = "pending"
-	OrderStatusPaid      = "paid"
-	OrderStatusCancelled = "cancelled"
+	OrderStatusPending           = "pending"
+	OrderStatusPaid              = "paid"
+	OrderStatusCancelled         = "cancelled"
+	OrderStatusPartiallyRefunded = "partially_refunded"
+	OrderStatusRefunded          = "refunded"
 
-	PaymentMethodBalance = "balance"
+	PaymentMethodBalance  = "balance"
+	PaymentMethodManual   = "manual"
+	PaymentMethodExternal = "external"
 )
 
 // Order represents a billing order.
@@ -32,6 +37,8 @@ type Order struct {
 	RefundedAt    *time.Time     `gorm:"column:refunded_at"`
 	PaidAt        *time.Time     `gorm:"column:paid_at"`
 	CancelledAt   *time.Time     `gorm:"column:cancelled_at"`
+	RefundedCents int64          `gorm:"column:refunded_cents"`
+	RefundedAt    *time.Time     `gorm:"column:refunded_at"`
 	Metadata      map[string]any `gorm:"serializer:json"`
 	PlanSnapshot  map[string]any `gorm:"serializer:json"`
 	CreatedAt     time.Time
@@ -59,6 +66,20 @@ type OrderItem struct {
 // TableName declares table mapping.
 func (OrderItem) TableName() string { return "order_items" }
 
+// OrderRefund captures refund records associated with an order.
+type OrderRefund struct {
+	ID          uint64         `gorm:"primaryKey"`
+	OrderID     uint64         `gorm:"index"`
+	AmountCents int64          `gorm:"column:amount_cents"`
+	Reason      string         `gorm:"size:255"`
+	Reference   string         `gorm:"size:64"`
+	Metadata    map[string]any `gorm:"serializer:json"`
+	CreatedAt   time.Time
+}
+
+// TableName declares refund table mapping.
+func (OrderRefund) TableName() string { return "order_refunds" }
+
 // ListOrdersOptions controls filtering.
 type ListOrdersOptions struct {
 	Page          int
@@ -75,6 +96,8 @@ type ListOrdersOptions struct {
 type OrderRepository interface {
 	Create(ctx context.Context, order Order, items []OrderItem) (Order, []OrderItem, error)
 	Get(ctx context.Context, id uint64) (Order, []OrderItem, error)
+	GetForUpdate(ctx context.Context, id uint64) (Order, error)
+	Save(ctx context.Context, order Order) (Order, error)
 	List(ctx context.Context, opts ListOrdersOptions) ([]Order, int64, error)
 	ListItems(ctx context.Context, orderIDs []uint64) (map[uint64][]OrderItem, error)
 	UpdateStatus(ctx context.Context, id uint64, params UpdateOrderStatusParams) (Order, error)
@@ -163,6 +186,34 @@ func (r *orderRepository) Get(ctx context.Context, id uint64) (Order, []OrderIte
 	return order, items, nil
 }
 
+func (r *orderRepository) GetForUpdate(ctx context.Context, id uint64) (Order, error) {
+	if err := ctx.Err(); err != nil {
+		return Order{}, err
+	}
+
+	var order Order
+	if err := r.db.WithContext(ctx).Clauses(clause.Locking{Strength: "UPDATE"}).First(&order, id).Error; err != nil {
+		return Order{}, translateError(err)
+	}
+	return order, nil
+}
+
+func (r *orderRepository) Save(ctx context.Context, order Order) (Order, error) {
+	if err := ctx.Err(); err != nil {
+		return Order{}, err
+	}
+
+	if order.ID == 0 {
+		return Order{}, ErrInvalidArgument
+	}
+
+	order.UpdatedAt = time.Now().UTC()
+	if err := r.db.WithContext(ctx).Save(&order).Error; err != nil {
+		return Order{}, translateError(err)
+	}
+	return order, nil
+}
+
 func (r *orderRepository) List(ctx context.Context, opts ListOrdersOptions) ([]Order, int64, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, 0, err
@@ -230,6 +281,50 @@ func (r *orderRepository) ListItems(ctx context.Context, orderIDs []uint64) (map
 	}
 
 	return grouped, nil
+}
+
+func (r *orderRepository) ListRefunds(ctx context.Context, orderIDs []uint64) (map[uint64][]OrderRefund, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	if len(orderIDs) == 0 {
+		return map[uint64][]OrderRefund{}, nil
+	}
+
+	var refunds []OrderRefund
+	if err := r.db.WithContext(ctx).
+		Where("order_id IN ?", orderIDs).
+		Order("id ASC").
+		Find(&refunds).Error; err != nil {
+		return nil, err
+	}
+
+	grouped := make(map[uint64][]OrderRefund, len(orderIDs))
+	for _, refund := range refunds {
+		grouped[refund.OrderID] = append(grouped[refund.OrderID], refund)
+	}
+
+	return grouped, nil
+}
+
+func (r *orderRepository) CreateRefund(ctx context.Context, refund OrderRefund) (OrderRefund, error) {
+	if err := ctx.Err(); err != nil {
+		return OrderRefund{}, err
+	}
+
+	if refund.OrderID == 0 || refund.AmountCents <= 0 {
+		return OrderRefund{}, ErrInvalidArgument
+	}
+
+	if refund.CreatedAt.IsZero() {
+		refund.CreatedAt = time.Now().UTC()
+	}
+
+	if err := r.db.WithContext(ctx).Create(&refund).Error; err != nil {
+		return OrderRefund{}, translateError(err)
+	}
+
+	return refund, nil
 }
 
 func normalizeListOrdersOptions(opts ListOrdersOptions) ListOrdersOptions {
