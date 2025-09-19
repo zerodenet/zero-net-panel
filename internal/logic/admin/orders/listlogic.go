@@ -76,6 +76,11 @@ func (l *ListLogic) List(req *types.AdminListOrdersRequest) (*types.AdminOrderLi
 		return nil, err
 	}
 
+	refundsMap, err := l.svcCtx.Repositories.Order.ListRefunds(l.ctx, ids)
+	if err != nil {
+		return nil, err
+	}
+
 	userCache := make(map[uint64]types.OrderUserSummary)
 	entries := make([]types.AdminOrderDetail, 0, len(orders))
 	for _, order := range orders {
@@ -92,7 +97,7 @@ func (l *ListLogic) List(req *types.AdminListOrdersRequest) (*types.AdminOrderLi
 			}
 			userCache[order.UserID] = summary
 		}
-		detail := orderutil.ToOrderDetail(order, itemsMap[order.ID])
+		detail := orderutil.ToOrderDetail(order, itemsMap[order.ID], refundsMap[order.ID])
 		entries = append(entries, types.AdminOrderDetail{
 			OrderDetail: detail,
 			User:        summary,

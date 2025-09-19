@@ -9,4 +9,5 @@ var (
 	ErrForbidden           = errors.New("repository: forbidden")
 	ErrUnauthorized        = errors.New("repository: unauthorized")
 	ErrInsufficientBalance = errors.New("repository: insufficient balance")
+	ErrInvalidState        = errors.New("repository: invalid state")
 )

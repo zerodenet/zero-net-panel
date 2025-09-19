@@ -32,6 +32,26 @@ func UserCreateOrderHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 	}
 }
 
+// UserCancelOrderHandler cancels a pending order for the authenticated user.
+func UserCancelOrderHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var req types.UserCancelOrderRequest
+		if err := httpx.Parse(r, &req); err != nil {
+			handlercommon.RespondError(w, r, repository.ErrInvalidArgument)
+			return
+		}
+
+		logic := userorder.NewCancelLogic(r.Context(), svcCtx)
+		resp, err := logic.Cancel(&req)
+		if err != nil {
+			handlercommon.RespondError(w, r, err)
+			return
+		}
+
+		httpx.OkJsonCtx(r.Context(), w, resp)
+	}
+}
+
 // UserListOrdersHandler lists the authenticated user's orders with pagination metadata.
 func UserListOrdersHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {

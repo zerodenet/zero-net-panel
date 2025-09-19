@@ -54,7 +54,20 @@ type OrderDetail {
     metadata map[string]any
     paid_at *int64
     cancelled_at *int64
+    refunded_cents int64
+    refunded_at *int64
     created_at int64
     updated_at int64
     items []OrderItem
+    refunds []OrderRefund
+}
+
+type OrderRefund {
+    id uint64
+    order_id uint64
+    amount_cents int64
+    reason string
+    reference string
+    metadata map[string]any
+    created_at int64
 }
