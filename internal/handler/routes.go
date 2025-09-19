@@ -150,6 +150,21 @@ func RegisterHandlers(server *rest.Server, svcCtx *svc.ServiceContext) {
 			Path:    "/orders/:id",
 			Handler: adminOrders.AdminGetOrderHandler(svcCtx),
 		},
+		{
+			Method:  http.MethodPost,
+			Path:    "/orders/:id/pay",
+			Handler: adminOrders.AdminMarkOrderPaidHandler(svcCtx),
+		},
+		{
+			Method:  http.MethodPost,
+			Path:    "/orders/:id/cancel",
+			Handler: adminOrders.AdminCancelOrderHandler(svcCtx),
+		},
+		{
+			Method:  http.MethodPost,
+			Path:    "/orders/:id/refund",
+			Handler: adminOrders.AdminRefundOrderHandler(svcCtx),
+		},
 	}
 	adminRoutes = rest.WithMiddlewares([]rest.Middleware{authMiddleware.RequireRoles("admin")}, adminRoutes...)
 	adminPrefix := svcCtx.Config.Admin.RoutePrefix
@@ -204,6 +219,11 @@ func RegisterHandlers(server *rest.Server, svcCtx *svc.ServiceContext) {
 			Method:  http.MethodGet,
 			Path:    "/orders/:id",
 			Handler: userOrders.UserGetOrderHandler(svcCtx),
+		},
+		{
+			Method:  http.MethodPost,
+			Path:    "/orders/:id/cancel",
+			Handler: userOrders.UserCancelOrderHandler(svcCtx),
 		},
 	}
 	userRoutes = rest.WithMiddlewares([]rest.Middleware{authMiddleware.RequireRoles("user"), thirdPartyMiddleware.Handler}, userRoutes...)

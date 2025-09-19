@@ -589,6 +589,7 @@ func seedOrders(tx *gorm.DB) error {
 		PaymentMethod: repository.PaymentMethodBalance,
 		TotalCents:    plan.PriceCents,
 		Currency:      plan.Currency,
+		RefundedCents: 0,
 		Metadata: map[string]any{
 			"quantity": 1,
 			"seed":     true,

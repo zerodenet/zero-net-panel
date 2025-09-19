@@ -51,3 +51,63 @@ func AdminGetOrderHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 		httpx.OkJsonCtx(r.Context(), w, resp)
 	}
 }
+
+// AdminMarkOrderPaidHandler marks an order as paid by an administrator.
+func AdminMarkOrderPaidHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var req types.AdminMarkOrderPaidRequest
+		if err := httpx.Parse(r, &req); err != nil {
+			handlercommon.RespondError(w, r, repository.ErrInvalidArgument)
+			return
+		}
+
+		logic := adminorders.NewMarkPaidLogic(r.Context(), svcCtx)
+		resp, err := logic.MarkPaid(&req)
+		if err != nil {
+			handlercommon.RespondError(w, r, err)
+			return
+		}
+
+		httpx.OkJsonCtx(r.Context(), w, resp)
+	}
+}
+
+// AdminCancelOrderHandler cancels an order manually.
+func AdminCancelOrderHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var req types.AdminCancelOrderRequest
+		if err := httpx.Parse(r, &req); err != nil {
+			handlercommon.RespondError(w, r, repository.ErrInvalidArgument)
+			return
+		}
+
+		logic := adminorders.NewCancelLogic(r.Context(), svcCtx)
+		resp, err := logic.Cancel(&req)
+		if err != nil {
+			handlercommon.RespondError(w, r, err)
+			return
+		}
+
+		httpx.OkJsonCtx(r.Context(), w, resp)
+	}
+}
+
+// AdminRefundOrderHandler performs a balance refund for an order.
+func AdminRefundOrderHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var req types.AdminRefundOrderRequest
+		if err := httpx.Parse(r, &req); err != nil {
+			handlercommon.RespondError(w, r, repository.ErrInvalidArgument)
+			return
+		}
+
+		logic := adminorders.NewRefundLogic(r.Context(), svcCtx)
+		resp, err := logic.Refund(&req)
+		if err != nil {
+			handlercommon.RespondError(w, r, err)
+			return
+		}
+
+		httpx.OkJsonCtx(r.Context(), w, resp)
+	}
+}

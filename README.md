@@ -7,7 +7,7 @@ Zero Network Panel 旨在以 xboard 的功能体系为基线，提供面向节�
 - **订阅模板管理**：提供模板 CRUD、版本发布、历史追溯及默认模板切换，变量描述采用 GitHub 风格的分页与字段规范。
 - **用户订阅能力**：支持订阅列表查询、模板预览与定制选择，同时输出渲染后的内容、ETag 及内容类型信息，方便前端或客户端下载。
 - **套餐/公告/余额**：实现 `plans`、`announcements`、`user_balances` 等核心表，对齐 xboard 套餐管理、公告通知与钱包查询能力，并支持第三方加密校验开关。
-- **计费订单**：新增 `orders`/`order_items` 模型及用户下单、余额扣费逻辑，管理端可检索订单并关联用户信息，支撑后续支付与开票扩展。
+- **计费订单**：新增 `orders`/`order_items` 模型，支持用户下单、余额扣费与取消，管理端可检索订单并执行手动支付、取消与余额退款，支撑支付与开票扩展。
 - **第三方安全配置**：提供 `security_settings` 仓储与管理端接口，可动态开启/关闭签名与加密、维护 API Key/Secret 及时间窗口。
 - **仓储抽象层**：全部领域模型已迁移至 GORM，兼容 MySQL/PostgreSQL/SQLite，配合版本化迁移 (`schema_migrations`) 与演示数据脚本快速初始化环境。
 
@@ -28,10 +28,14 @@ Zero Network Panel 旨在以 xboard 的功能体系为基线，提供面向节�
 - `POST /api/v1/user/orders`：创建套餐订单并自动从余额扣费。
 - `GET /api/v1/user/orders`：分页查看订单记录及订单条目。
 - `GET /api/v1/user/orders/{id}`：获取单个订单详情及余额快照。
+- `POST /api/v1/user/orders/{id}/cancel`：取消待支付或零元订单。
 - `GET /api/v1/{AdminPrefix}/security-settings`：查看第三方 API 安全开关与凭据配置。
 - `PATCH /api/v1/{AdminPrefix}/security-settings`：更新开关、密钥与时间窗口信息。
 - `GET /api/v1/{AdminPrefix}/orders`：按状态、用户、支付方式筛选订单。
 - `GET /api/v1/{AdminPrefix}/orders/{id}`：查看订单详情、关联用户及条目。
+- `POST /api/v1/{AdminPrefix}/orders/{id}/pay`：手动标记订单已支付，可覆盖支付方式与时间。
+- `POST /api/v1/{AdminPrefix}/orders/{id}/cancel`：管理员取消订单，支持记录原因。
+- `POST /api/v1/{AdminPrefix}/orders/{id}/refund`：对余额支付订单执行退款并写入流水。
 
 ## 项目结构
 ```

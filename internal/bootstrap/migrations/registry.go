@@ -59,6 +59,15 @@ var migrationRegistry = []Migration{
 			)
 		},
 	},
+	{
+		Version: 2024071501,
+		Name:    "order-refund-tracking",
+		Up: func(ctx context.Context, db *gorm.DB) error {
+			return db.WithContext(ctx).AutoMigrate(
+				&repository.Order{},
+			)
+		},
+	},
 }
 
 func init() {
@@ -68,7 +77,7 @@ func init() {
 }
 
 // Apply executes migrations up to targetVersion (0 denotes latest).
-func Apply(ctx context.Context, db *gorm.DB, targetVersion uint64) error {
+func Apply(ctx context.Context, db *gorm.DB, targetVersion uint64, allowRollback bool) error {
 	if db == nil {
 		return fmt.Errorf("migrations: database connection is required")
 	}
@@ -78,8 +87,8 @@ func Apply(ctx context.Context, db *gorm.DB, targetVersion uint64) error {
 	}
 
 	var applied []SchemaMigration
-	if err := db.WithContext(ctx).Order("version ASC").Find(&applied).Error; err != nil {
-		return fmt.Errorf("migrations: load applied versions: %w", err)
+	if result := db.WithContext(ctx).Order("version ASC").Find(&applied); result.Error != nil {
+		return fmt.Errorf("migrations: load applied versions: %w", result.Error)
 	}
 
 	appliedSet := make(map[uint64]SchemaMigration, len(applied))
@@ -92,7 +101,10 @@ func Apply(ctx context.Context, db *gorm.DB, targetVersion uint64) error {
 	}
 
 	if targetVersion != 0 && targetVersion < currentVersion {
-		return fmt.Errorf("migrations: target version %d is older than current version %d", targetVersion, currentVersion)
+		if !allowRollback {
+			return fmt.Errorf("migrations: target version %d is older than current version %d", targetVersion, currentVersion)
+		}
+		return fmt.Errorf("migrations: rollback to version %d from %d is not implemented", targetVersion, currentVersion)
 	}
 
 	for _, m := range migrationRegistry {
@@ -103,21 +115,29 @@ func Apply(ctx context.Context, db *gorm.DB, targetVersion uint64) error {
 			continue
 		}
 
+		var entry SchemaMigration
 		if err := db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 			if err := m.Up(ctx, tx); err != nil {
 				return err
 			}
-			record := SchemaMigration{
+			appliedAt := time.Now().UTC()
+			entry = SchemaMigration{
 				Version:   m.Version,
 				Name:      m.Name,
-				AppliedAt: time.Now().UTC(),
+				AppliedAt: appliedAt,
 			}
-			if err := tx.Create(&record).Error; err != nil {
-				return err
+			if result := tx.Create(&entry); result.Error != nil {
+				return result.Error
+			} else if result.RowsAffected != 1 {
+				return fmt.Errorf("migrations: record version %d affected %d rows", m.Version, result.RowsAffected)
 			}
 			return nil
 		}); err != nil {
 			return fmt.Errorf("migrations: apply %d (%s): %w", m.Version, m.Name, err)
+		}
+		appliedSet[m.Version] = entry
+		if entry.Version > currentVersion {
+			currentVersion = entry.Version
 		}
 	}
 

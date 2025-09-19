@@ -12,7 +12,7 @@
 | 套餐管理 | `/api/v1/{admin}/plans` | 套餐列表、创建、更新，字段涵盖价格、时长、流量限制等 |
 | 公告中心 | `/api/v1/{admin}/announcements` | 公告列表、创建、发布，支持置顶与可见时间窗 |
 | 安全配置 | `/api/v1/{admin}/security-settings` | 读取与更新第三方签名/加密开关、凭据与时间窗口 |
-| 订单管理 | `/api/v1/{admin}/orders` | 按状态、用户、支付方式检索订单并查看详情 |
+| 订单管理 | `/api/v1/{admin}/orders` | 检索、查看订单，并支持手动标记支付/取消与余额退款 |
 
 > `{admin}` 为可配置的后台前缀，默认为 `admin`，可通过 `Admin.RoutePrefix` 自定义。
 
@@ -22,7 +22,12 @@
 - `/api/v1/user/plans`：面向终端的套餐列表，返回价格、特性、流量限制等字段。
 - `/api/v1/user/announcements`：按受众过滤当前有效公告，支持置顶排序与限量返回。
 - `/api/v1/user/account/balance`：返回当前余额、币种以及流水历史。
-- `/api/v1/user/orders`：创建与查询订单，返回计划快照、条目与余额快照。
+- `/api/v1/user/orders`：创建、查询订单并支持取消待支付或零元订单，返回计划快照、条目与余额快照。
+
+### 订单操作补充说明
+
+- 用户端 `POST /api/v1/user/orders/{id}/cancel` 仅允许取消待支付或零金额订单，不触发余额回滚。
+- 管理端提供 `POST /api/v1/{admin}/orders/{id}/pay`、`/cancel` 与 `/refund`，需管理员角色；退款仅适用于余额支付订单，成功后会写入退款流水并回滚余额。
 
 所有用户端接口默认需要 JWT 鉴权，同时可选启用第三方加密认证中间件，对请求进行签名验证与 AES-GCM 解密。
 

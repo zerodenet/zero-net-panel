@@ -30,6 +30,7 @@ func ToOrderDetail(order repository.Order, items []repository.OrderItem) types.O
 		UserID:        order.UserID,
 		Status:        order.Status,
 		TotalCents:    order.TotalCents,
+		RefundedCents: order.RefundedCents,
 		Currency:      order.Currency,
 		PaymentMethod: order.PaymentMethod,
 		PlanSnapshot:  order.PlanSnapshot,
@@ -50,6 +51,11 @@ func ToOrderDetail(order repository.Order, items []repository.OrderItem) types.O
 	if order.CancelledAt != nil {
 		cancelled := order.CancelledAt.UTC().Unix()
 		detail.CancelledAt = &cancelled
+	}
+
+	if order.RefundedAt != nil {
+		refunded := order.RefundedAt.UTC().Unix()
+		detail.RefundedAt = &refunded
 	}
 
 	if len(items) == 0 {
