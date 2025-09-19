@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"reflect"
 	"testing"
 
 	"gorm.io/driver/sqlite"
@@ -65,6 +66,18 @@ func TestApplyMigrationsIdempotent(t *testing.T) {
 	if first.AfterVersion != first.TargetVersion {
 		t.Fatalf("expected after version equals target, got after=%d target=%d", first.AfterVersion, first.TargetVersion)
 	}
+	var expectedApplied []uint64
+	for _, m := range migrationRegistry {
+		if m.Version <= first.TargetVersion {
+			expectedApplied = append(expectedApplied, m.Version)
+		}
+	}
+	if !reflect.DeepEqual(first.AppliedVersions, expectedApplied) {
+		t.Fatalf("expected applied versions %v, got %v", expectedApplied, first.AppliedVersions)
+	}
+	if len(first.RolledBackVersions) != 0 {
+		t.Fatalf("expected no rollbacks on first run, got %v", first.RolledBackVersions)
+	}
 
 	second, err := Apply(ctx, db, 0, false)
 	if err != nil {
@@ -72,6 +85,9 @@ func TestApplyMigrationsIdempotent(t *testing.T) {
 	}
 	if len(second.AppliedVersions) != 0 {
 		t.Fatalf("expected no new migrations on second run, got %v", second.AppliedVersions)
+	}
+	if len(second.RolledBackVersions) != 0 {
+		t.Fatalf("expected no rollbacks on second run, got %v", second.RolledBackVersions)
 	}
 	if second.AfterVersion != first.AfterVersion {
 		t.Fatalf("expected version unchanged, got %d", second.AfterVersion)
@@ -135,8 +151,131 @@ func TestApplyMigrationsRollbackOutOfRange(t *testing.T) {
 	if result.AfterVersion != 0 {
 		t.Fatalf("expected no migrations remaining, got %d", result.AfterVersion)
 	}
+	var expectedRolledBack []uint64
+	for i := len(migrationRegistry) - 1; i >= 0; i-- {
+		if migrationRegistry[i].Version > target {
+			expectedRolledBack = append(expectedRolledBack, migrationRegistry[i].Version)
+		}
+	}
+	if !reflect.DeepEqual(result.RolledBackVersions, expectedRolledBack) {
+		t.Fatalf("expected rolled back versions %v, got %v", expectedRolledBack, result.RolledBackVersions)
+	}
+	if len(result.AppliedVersions) != 0 {
+		t.Fatalf("expected no applied versions during rollback, got %v", result.AppliedVersions)
+	}
 	if count := countMigrations(t, db); count != 0 {
 		t.Fatalf("expected metadata cleared after rollback, got %d", count)
+	}
+}
+
+func TestApplyMigrationsRollbackOrder(t *testing.T) {
+	db := openSQLite(t)
+	ctx := context.Background()
+
+	original := migrationRegistry
+	t.Cleanup(func() { migrationRegistry = original })
+
+	type (
+		modelOne struct {
+			ID uint64 `gorm:"primaryKey"`
+		}
+		modelTwo struct {
+			ID uint64 `gorm:"primaryKey"`
+		}
+		modelThree struct {
+			ID uint64 `gorm:"primaryKey"`
+		}
+	)
+
+	executed := make([]uint64, 0, 2)
+
+	migrationRegistry = []Migration{
+		{
+			Version: 2100020101,
+			Name:    "one",
+			Up: func(ctx context.Context, db *gorm.DB) error {
+				return db.WithContext(ctx).AutoMigrate(&modelOne{})
+			},
+			Down: func(ctx context.Context, db *gorm.DB) error {
+				if err := db.WithContext(ctx).Migrator().DropTable(&modelOne{}); err != nil {
+					return err
+				}
+				executed = append(executed, 2100020101)
+				return nil
+			},
+		},
+		{
+			Version: 2100020102,
+			Name:    "two",
+			Up: func(ctx context.Context, db *gorm.DB) error {
+				return db.WithContext(ctx).AutoMigrate(&modelTwo{})
+			},
+			Down: func(ctx context.Context, db *gorm.DB) error {
+				if err := db.WithContext(ctx).Migrator().DropTable(&modelTwo{}); err != nil {
+					return err
+				}
+				executed = append(executed, 2100020102)
+				return nil
+			},
+		},
+		{
+			Version: 2100020103,
+			Name:    "three",
+			Up: func(ctx context.Context, db *gorm.DB) error {
+				return db.WithContext(ctx).AutoMigrate(&modelThree{})
+			},
+			Down: func(ctx context.Context, db *gorm.DB) error {
+				if err := db.WithContext(ctx).Migrator().DropTable(&modelThree{}); err != nil {
+					return err
+				}
+				executed = append(executed, 2100020103)
+				return nil
+			},
+		},
+	}
+
+	if _, err := Apply(ctx, db, 0, false); err != nil {
+		t.Fatalf("apply migrations: %v", err)
+	}
+
+	target := migrationRegistry[0].Version
+	result, err := Apply(ctx, db, target, true)
+	if err != nil {
+		t.Fatalf("rollback migrations: %v", err)
+	}
+
+	expectedOrder := []uint64{2100020103, 2100020102}
+	if !reflect.DeepEqual(executed, expectedOrder) {
+		t.Fatalf("expected rollback order %v, got %v", expectedOrder, executed)
+	}
+	if !reflect.DeepEqual(result.RolledBackVersions, expectedOrder) {
+		t.Fatalf("expected rolled back versions %v, got %v", expectedOrder, result.RolledBackVersions)
+	}
+	if result.AfterVersion != target {
+		t.Fatalf("expected after version %d, got %d", target, result.AfterVersion)
+	}
+}
+
+func TestApplyMigrationsTargetTooNew(t *testing.T) {
+	if len(migrationRegistry) == 0 {
+		t.Skip("no migrations registered")
+	}
+
+	db := openSQLite(t)
+	ctx := context.Background()
+
+	if _, err := Apply(ctx, db, 0, false); err != nil {
+		t.Fatalf("apply migrations: %v", err)
+	}
+
+	latest := migrationRegistry[len(migrationRegistry)-1].Version
+	if latest == ^uint64(0) {
+		t.Skip("cannot compute target beyond max uint64")
+	}
+
+	target := latest + 1
+	if _, err := Apply(ctx, db, target, false); err == nil {
+		t.Fatalf("expected error when targeting newer version %d", target)
 	}
 }
 

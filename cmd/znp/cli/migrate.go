@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -46,12 +47,35 @@ func NewMigrateCommand(opts *GlobalOptions) *cobra.Command {
 			}
 
 			if apply {
+				formatVersions := func(values []uint64) string {
+					if len(values) == 0 {
+						return "-"
+					}
+					parts := make([]string, len(values))
+					for i, value := range values {
+						parts[i] = fmt.Sprintf("%d", value)
+					}
+					return strings.Join(parts, ", ")
+				}
+
 				if len(result.AppliedVersions) == 0 && len(result.RolledBackVersions) == 0 {
 					cmd.Printf("Schema state unchanged (current=%d, target=%d).\n", result.AfterVersion, result.TargetVersion)
 				} else if len(result.RolledBackVersions) > 0 {
-					cmd.Printf("Rollback complete (before=%d, after=%d, target=%d).\n", result.BeforeVersion, result.AfterVersion, result.TargetVersion)
+					cmd.Printf(
+						"Rollback complete (before=%d, after=%d, target=%d, versions=[%s]).\n",
+						result.BeforeVersion,
+						result.AfterVersion,
+						result.TargetVersion,
+						formatVersions(result.RolledBackVersions),
+					)
 				} else {
-					cmd.Printf("Migrations applied (before=%d, after=%d, target=%d).\n", result.BeforeVersion, result.AfterVersion, result.TargetVersion)
+					cmd.Printf(
+						"Migrations applied (before=%d, after=%d, target=%d, versions=[%s]).\n",
+						result.BeforeVersion,
+						result.AfterVersion,
+						result.TargetVersion,
+						formatVersions(result.AppliedVersions),
+					)
 				}
 			}
 

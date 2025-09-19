@@ -37,8 +37,6 @@ type Order struct {
 	RefundedAt    *time.Time     `gorm:"column:refunded_at"`
 	PaidAt        *time.Time     `gorm:"column:paid_at"`
 	CancelledAt   *time.Time     `gorm:"column:cancelled_at"`
-	RefundedCents int64          `gorm:"column:refunded_cents"`
-	RefundedAt    *time.Time     `gorm:"column:refunded_at"`
 	Metadata      map[string]any `gorm:"serializer:json"`
 	PlanSnapshot  map[string]any `gorm:"serializer:json"`
 	CreatedAt     time.Time
@@ -100,6 +98,7 @@ type OrderRepository interface {
 	Save(ctx context.Context, order Order) (Order, error)
 	List(ctx context.Context, opts ListOrdersOptions) ([]Order, int64, error)
 	ListItems(ctx context.Context, orderIDs []uint64) (map[uint64][]OrderItem, error)
+	ListRefunds(ctx context.Context, orderIDs []uint64) (map[uint64][]OrderRefund, error)
 	UpdateStatus(ctx context.Context, id uint64, params UpdateOrderStatusParams) (Order, error)
 	AddRefund(ctx context.Context, id uint64, params AddRefundParams) (Order, error)
 }

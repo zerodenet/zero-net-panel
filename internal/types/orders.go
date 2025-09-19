@@ -15,6 +15,17 @@ type OrderItem struct {
 	CreatedAt      int64          `json:"created_at"`
 }
 
+// OrderRefund 订单退款记录。
+type OrderRefund struct {
+	ID          uint64         `json:"id"`
+	OrderID     uint64         `json:"order_id"`
+	AmountCents int64          `json:"amount_cents"`
+	Reason      string         `json:"reason"`
+	Reference   string         `json:"reference"`
+	Metadata    map[string]any `json:"metadata,omitempty"`
+	CreatedAt   int64          `json:"created_at"`
+}
+
 // OrderDetail 订单详情。
 type OrderDetail struct {
 	ID            uint64         `json:"id"`
@@ -34,6 +45,7 @@ type OrderDetail struct {
 	CreatedAt     int64          `json:"created_at"`
 	UpdatedAt     int64          `json:"updated_at"`
 	Items         []OrderItem    `json:"items"`
+	Refunds       []OrderRefund  `json:"refunds,omitempty"`
 }
 
 // UserCreateOrderRequest 创建订单请求。
@@ -124,6 +136,8 @@ type AdminMarkOrderPaidRequest struct {
 	PaymentMethod string `json:"payment_method,omitempty"`
 	PaidAt        *int64 `json:"paid_at,omitempty"`
 	Note          string `json:"note,omitempty"`
+	Reference     string `json:"reference,omitempty"`
+	ChargeBalance bool   `json:"charge_balance,omitempty"`
 }
 
 // AdminCancelOrderRequest 管理端取消订单。
@@ -135,9 +149,10 @@ type AdminCancelOrderRequest struct {
 
 // AdminRefundOrderRequest 管理端发起退款。
 type AdminRefundOrderRequest struct {
-	OrderID     uint64         `path:"id"`
-	AmountCents int64          `json:"amount_cents"`
-	Reason      string         `json:"reason,omitempty"`
-	Metadata    map[string]any `json:"metadata,omitempty"`
-	RefundAt    *int64         `json:"refund_at,omitempty"`
+	OrderID       uint64         `path:"id"`
+	AmountCents   int64          `json:"amount_cents"`
+	Reason        string         `json:"reason,omitempty"`
+	Metadata      map[string]any `json:"metadata,omitempty"`
+	RefundAt      *int64         `json:"refund_at,omitempty"`
+	CreditBalance bool           `json:"credit_balance,omitempty"`
 }

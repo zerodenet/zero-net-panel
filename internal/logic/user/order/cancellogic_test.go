@@ -22,7 +22,7 @@ func setupUserOrderTestContext(t *testing.T) (*svc.ServiceContext, func()) {
 	db, err := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{})
 	require.NoError(t, err)
 
-	err = migrations.Apply(context.Background(), db, 0, false)
+	_, err = migrations.Apply(context.Background(), db, 0, false)
 	require.NoError(t, err)
 
 	repos, err := repository.NewRepositories(db)

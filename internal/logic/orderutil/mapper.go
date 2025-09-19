@@ -35,7 +35,6 @@ func ToOrderDetail(order repository.Order, items []repository.OrderItem, refunds
 		PaymentMethod: order.PaymentMethod,
 		PlanSnapshot:  order.PlanSnapshot,
 		Metadata:      order.Metadata,
-		RefundedCents: order.RefundedCents,
 		CreatedAt:     order.CreatedAt.UTC().Unix(),
 		UpdatedAt:     order.UpdatedAt.UTC().Unix(),
 	}

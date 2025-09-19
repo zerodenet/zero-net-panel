@@ -9,7 +9,6 @@ import (
 
 	"gorm.io/gorm"
 
-	"github.com/zero-net-panel/zero-net-panel/internal/bootstrap/seed"
 	"github.com/zero-net-panel/zero-net-panel/internal/repository"
 )
 
@@ -130,6 +129,15 @@ var migrationRegistry = []Migration{
 				&repository.OrderRefund{},
 			)
 		},
+		Down: func(ctx context.Context, db *gorm.DB) error {
+			migrator := db.WithContext(ctx).Migrator()
+			if migrator.HasTable(&repository.OrderRefund{}) {
+				if err := migrator.DropTable(&repository.OrderRefund{}); err != nil {
+					return err
+				}
+			}
+			return nil
+		},
 	},
 	{
 		Version: 2024071501,
@@ -138,6 +146,18 @@ var migrationRegistry = []Migration{
 			return db.WithContext(ctx).AutoMigrate(
 				&repository.Order{},
 			)
+		},
+		Down: func(ctx context.Context, db *gorm.DB) error {
+			migrator := db.WithContext(ctx).Migrator()
+			columns := []string{"refunded_cents", "refunded_at"}
+			for _, column := range columns {
+				if migrator.HasColumn(&repository.Order{}, column) {
+					if err := migrator.DropColumn(&repository.Order{}, column); err != nil {
+						return err
+					}
+				}
+			}
+			return nil
 		},
 	},
 }
@@ -149,22 +169,23 @@ func init() {
 }
 
 // Apply executes migrations up to targetVersion (0 denotes latest).
-func Apply(ctx context.Context, db *gorm.DB, targetVersion uint64, allowRollback bool) error {
+func Apply(ctx context.Context, db *gorm.DB, targetVersion uint64, allowRollback bool) (Result, error) {
+	var result Result
+
 	if db == nil {
-		return nil, fmt.Errorf("migrations: database connection is required")
+		return result, fmt.Errorf("migrations: database connection is required")
 	}
 
 	if err := db.WithContext(ctx).AutoMigrate(&SchemaMigration{}); err != nil {
-		return nil, fmt.Errorf("migrations: prepare metadata table: %w", err)
+		return result, fmt.Errorf("migrations: prepare metadata table: %w", err)
 	}
 
 	var applied []SchemaMigration
-	if result := db.WithContext(ctx).Order("version ASC").Find(&applied); result.Error != nil {
-		return fmt.Errorf("migrations: load applied versions: %w", result.Error)
+	if err := db.WithContext(ctx).Order("version ASC").Find(&applied).Error; err != nil {
+		return result, fmt.Errorf("migrations: load applied versions: %w", err)
 	}
 
 	appliedSet := make(map[uint64]SchemaMigration, len(applied))
-	registryMap := make(map[uint64]Migration, len(migrationRegistry))
 	var currentVersion uint64
 	for _, record := range applied {
 		appliedSet[record.Version] = record
@@ -173,11 +194,16 @@ func Apply(ctx context.Context, db *gorm.DB, targetVersion uint64, allowRollback
 		}
 	}
 
-	if targetVersion != 0 && targetVersion < currentVersion {
-		if !allowRollback {
-			return fmt.Errorf("migrations: target version %d is older than current version %d", targetVersion, currentVersion)
+	registryMap := make(map[uint64]Migration, len(migrationRegistry))
+	var latestVersion uint64
+	for _, migration := range migrationRegistry {
+		if _, exists := registryMap[migration.Version]; exists {
+			return result, fmt.Errorf("migrations: duplicate migration version %d registered", migration.Version)
 		}
-		return fmt.Errorf("migrations: rollback to version %d from %d is not implemented", targetVersion, currentVersion)
+		registryMap[migration.Version] = migration
+		if migration.Version > latestVersion {
+			latestVersion = migration.Version
+		}
 	}
 
 	for version := range appliedSet {
@@ -190,47 +216,131 @@ func Apply(ctx context.Context, db *gorm.DB, targetVersion uint64, allowRollback
 
 	effectiveTarget := targetVersion
 	if targetVersion == 0 {
-		if len(migrationRegistry) > 0 {
-			effectiveTarget = migrationRegistry[len(migrationRegistry)-1].Version
+		effectiveTarget = latestVersion
+	} else {
+		if len(migrationRegistry) == 0 {
+			return result, fmt.Errorf("migrations: no migrations registered, cannot reach target version %d", targetVersion)
+		}
+		if targetVersion > latestVersion {
+			return result, fmt.Errorf("migrations: target version %d is newer than latest registered version %d", targetVersion, latestVersion)
 		}
 	}
 	result.TargetVersion = effectiveTarget
 
-  var entry SchemaMigration
-  if err := db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-    if err := m.Up(ctx, tx); err != nil {
-      return err
-    }
-    appliedAt := time.Now().UTC()
-    entry = SchemaMigration{
-      Version:   m.Version,
-      Name:      m.Name,
-      AppliedAt: appliedAt,
-    }
-    if result := tx.Create(&entry); result.Error != nil {
-      return result.Error
-    } else if result.RowsAffected != 1 {
-      return fmt.Errorf("migrations: record version %d affected %d rows", m.Version, result.RowsAffected)
-    }
-			return nil
-		}); err != nil {
-			return nil, fmt.Errorf("migrations: apply %d (%s): %w", m.Version, m.Name, err)
+	if effectiveTarget > currentVersion {
+		for _, migration := range migrationRegistry {
+			if migration.Version <= currentVersion {
+				continue
+			}
+			if migration.Version > effectiveTarget {
+				break
+			}
+
+			entry, err := applyMigration(ctx, db, migration)
+			if err != nil {
+				return result, err
+			}
+			result.AppliedVersions = append(result.AppliedVersions, migration.Version)
+			appliedSet[migration.Version] = entry
+			currentVersion = migration.Version
+		}
+	} else if effectiveTarget < currentVersion {
+		if !allowRollback {
+			return result, fmt.Errorf("migrations: target version %d is older than current version %d", effectiveTarget, currentVersion)
+		}
+
+		sort.Slice(applied, func(i, j int) bool {
+			return applied[i].Version > applied[j].Version
+		})
+
+		for _, record := range applied {
+			if record.Version <= effectiveTarget {
+				break
+			}
+			migration, ok := registryMap[record.Version]
+			if !ok {
+				return result, fmt.Errorf("migrations: applied version %d is not registered", record.Version)
+			}
+			if err := rollbackMigration(ctx, db, migration); err != nil {
+				return result, err
+			}
+			delete(appliedSet, migration.Version)
+			result.RolledBackVersions = append(result.RolledBackVersions, migration.Version)
+		}
+
+		currentVersion = 0
+		for version := range appliedSet {
+			if version > currentVersion {
+				currentVersion = version
+			}
 		}
 	}
 
-	if withSeed {
-		if targetVersion != 0 {
-			return nil, fmt.Errorf("migrations: seed demo data requires latest schema (target version 0), got %d", targetVersion)
-		}
-
-		if err := seed.Run(ctx, db); err != nil {
-			return nil, fmt.Errorf("migrations: seed demo data: %w", err)
-		}
-		appliedSet[m.Version] = entry
-		if entry.Version > currentVersion {
-			currentVersion = entry.Version
-		}
-	}
+	result.AfterVersion = currentVersion
 
 	return result, nil
+}
+
+func applyMigration(ctx context.Context, db *gorm.DB, migration Migration) (SchemaMigration, error) {
+	var entry SchemaMigration
+
+	err := db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if migration.Up == nil {
+			return fmt.Errorf("migrations: up migration %d (%s) is nil", migration.Version, migration.Name)
+		}
+		if err := migration.Up(ctx, tx); err != nil {
+			return fmt.Errorf("up: %w", err)
+		}
+
+		entry = SchemaMigration{
+			Version:   migration.Version,
+			Name:      migration.Name,
+			AppliedAt: time.Now().UTC(),
+		}
+		if result := tx.Create(&entry); result.Error != nil {
+			return fmt.Errorf("record: %w", result.Error)
+		} else if result.RowsAffected != 1 {
+			return fmt.Errorf("record: affected %d rows", result.RowsAffected)
+		}
+		return nil
+	})
+	if err != nil {
+		var cleanupErr error
+		if migration.Down != nil {
+			cleanupErr = migration.Down(ctx, db.WithContext(ctx))
+		}
+		if cleanupErr != nil {
+			return SchemaMigration{}, fmt.Errorf("migrations: apply %d (%s): %w", migration.Version, migration.Name, errors.Join(err, cleanupErr))
+		}
+		return SchemaMigration{}, fmt.Errorf("migrations: apply %d (%s): %w", migration.Version, migration.Name, err)
+	}
+
+	return entry, nil
+}
+
+func rollbackMigration(ctx context.Context, db *gorm.DB, migration Migration) error {
+	if migration.Down == nil {
+		return fmt.Errorf("migrations: rollback %d (%s): down migration not defined", migration.Version, migration.Name)
+	}
+
+	err := db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := migration.Down(ctx, tx); err != nil {
+			return fmt.Errorf("down: %w", err)
+		}
+
+		result := tx.Where("version = ?", migration.Version).Delete(&SchemaMigration{})
+		if result.Error != nil {
+			return fmt.Errorf("delete metadata: %w", result.Error)
+		}
+		if result.RowsAffected != 1 {
+			return fmt.Errorf("delete metadata: affected %d rows", result.RowsAffected)
+		}
+
+		return nil
+	})
+	if err != nil {
+		return fmt.Errorf("migrations: rollback %d (%s): %w", migration.Version, migration.Name, err)
+	}
+
+	return nil
 }
