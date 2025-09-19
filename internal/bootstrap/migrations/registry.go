@@ -77,7 +77,7 @@ func init() {
 }
 
 // Apply executes migrations up to targetVersion (0 denotes latest).
-func Apply(ctx context.Context, db *gorm.DB, targetVersion uint64) error {
+func Apply(ctx context.Context, db *gorm.DB, targetVersion uint64, _ bool) error {
 	if db == nil {
 		return fmt.Errorf("migrations: database connection is required")
 	}
