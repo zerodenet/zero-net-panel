@@ -2,6 +2,7 @@ package migrations
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sort"
 	"time"
@@ -27,6 +28,16 @@ type Migration struct {
 	Version uint64
 	Name    string
 	Up      func(ctx context.Context, db *gorm.DB) error
+	Down    func(ctx context.Context, db *gorm.DB) error
+}
+
+// Result captures the state transition produced by Apply.
+type Result struct {
+	BeforeVersion      uint64
+	AfterVersion       uint64
+	TargetVersion      uint64
+	AppliedVersions    []uint64
+	RolledBackVersions []uint64
 }
 
 // ApplyResult captures details about a migration attempt.
@@ -64,6 +75,31 @@ var migrationRegistry = []Migration{
 				&repository.SecuritySetting{},
 			)
 		},
+		Down: func(ctx context.Context, db *gorm.DB) error {
+			migrator := db.WithContext(ctx).Migrator()
+			tables := []any{
+				&repository.SecuritySetting{},
+				&repository.BalanceTransaction{},
+				&repository.UserBalance{},
+				&repository.Announcement{},
+				&repository.Plan{},
+				&repository.Subscription{},
+				&repository.SubscriptionTemplateHistory{},
+				&repository.SubscriptionTemplate{},
+				&repository.NodeKernel{},
+				&repository.Node{},
+				&repository.User{},
+				&repository.AdminModule{},
+			}
+
+			for _, table := range tables {
+				if err := migrator.DropTable(table); err != nil {
+					return err
+				}
+			}
+
+			return nil
+		},
 	},
 	{
 		Version: 2024063001,
@@ -73,6 +109,16 @@ var migrationRegistry = []Migration{
 				&repository.Order{},
 				&repository.OrderItem{},
 			)
+		},
+		Down: func(ctx context.Context, db *gorm.DB) error {
+			migrator := db.WithContext(ctx).Migrator()
+			if err := migrator.DropTable(&repository.OrderItem{}); err != nil {
+				return err
+			}
+			if err := migrator.DropTable(&repository.Order{}); err != nil {
+				return err
+			}
+			return nil
 		},
 	},
 	{
@@ -112,6 +158,7 @@ func Apply(ctx context.Context, db *gorm.DB, targetVersion uint64, withSeed bool
 	}
 
 	appliedSet := make(map[uint64]SchemaMigration, len(applied))
+	registryMap := make(map[uint64]Migration, len(migrationRegistry))
 	var currentVersion uint64
 	for _, record := range applied {
 		appliedSet[record.Version] = record
@@ -130,25 +177,52 @@ func Apply(ctx context.Context, db *gorm.DB, targetVersion uint64, withSeed bool
 		return nil, fmt.Errorf("migrations: target version %d is older than current version %d", targetVersion, currentVersion)
 	}
 
-	for _, m := range migrationRegistry {
-		if targetVersion != 0 && m.Version > targetVersion {
-			break
+	for version := range appliedSet {
+		if _, ok := registryMap[version]; !ok {
+			return result, fmt.Errorf("migrations: applied version %d is not registered", version)
 		}
-		if _, ok := appliedSet[m.Version]; ok {
-			continue
-		}
+	}
 
-		if err := db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-			if err := m.Up(ctx, tx); err != nil {
-				return err
+	result.BeforeVersion = currentVersion
+
+	effectiveTarget := targetVersion
+	if targetVersion == 0 {
+		if len(migrationRegistry) > 0 {
+			effectiveTarget = migrationRegistry[len(migrationRegistry)-1].Version
+		}
+	}
+	result.TargetVersion = effectiveTarget
+
+	if effectiveTarget < currentVersion && !allowRollback {
+		result.AfterVersion = currentVersion
+		return result, fmt.Errorf("migrations: target version %d is older than current version %d; enable rollback (e.g. --rollback) to continue", effectiveTarget, currentVersion)
+	}
+
+	if effectiveTarget > currentVersion {
+		for _, m := range migrationRegistry {
+			if m.Version > effectiveTarget {
+				break
 			}
-			record := SchemaMigration{
-				Version:   m.Version,
-				Name:      m.Name,
-				AppliedAt: time.Now().UTC(),
+			if _, ok := appliedSet[m.Version]; ok {
+				continue
 			}
-			if err := tx.Create(&record).Error; err != nil {
-				return err
+
+			if err := db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+				if err := m.Up(ctx, tx); err != nil {
+					return err
+				}
+				record := SchemaMigration{
+					Version:   m.Version,
+					Name:      m.Name,
+					AppliedAt: time.Now().UTC(),
+				}
+				if err := tx.Create(&record).Error; err != nil {
+					return err
+				}
+				return nil
+			}); err != nil {
+				result.AfterVersion = currentVersion
+				return result, fmt.Errorf("migrations: apply %d (%s): %w", m.Version, m.Name, err)
 			}
 			result.Applied = append(result.Applied, record)
 			if record.Version > result.CurrentVersion {
