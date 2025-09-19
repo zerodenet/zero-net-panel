@@ -30,7 +30,7 @@ func NewServeCommand(opts *GlobalOptions) *cobra.Command {
 			}
 
 			if serveOpts.autoMigrate || serveOpts.seedDemo {
-				if err := bootstrap.PrepareDatabase(cmd.Context(), cfg, bootstrap.DatabaseOptions{
+				if _, err := bootstrap.PrepareDatabase(cmd.Context(), cfg, bootstrap.DatabaseOptions{
 					AutoMigrate:   serveOpts.autoMigrate,
 					SeedDemo:      serveOpts.seedDemo,
 					TargetVersion: serveOpts.targetVersion,

@@ -10,10 +10,11 @@ import (
 
 // AutoMigrate is kept for backwards compatibility and applies the latest migrations.
 func AutoMigrate(ctx context.Context, db *gorm.DB) error {
-	return ApplyMigrations(ctx, db, 0)
+	_, err := ApplyMigrations(ctx, db, 0, false)
+	return err
 }
 
 // ApplyMigrations executes schema migrations up to the target version (0 = latest).
-func ApplyMigrations(ctx context.Context, db *gorm.DB, targetVersion uint64) error {
-	return migrations.Apply(ctx, db, targetVersion)
+func ApplyMigrations(ctx context.Context, db *gorm.DB, targetVersion uint64, allowRollback bool) (migrations.Result, error) {
+	return migrations.Apply(ctx, db, targetVersion, allowRollback)
 }
