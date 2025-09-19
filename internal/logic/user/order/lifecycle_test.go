@@ -25,7 +25,7 @@ func setupTestServiceContext(t *testing.T) (*svc.ServiceContext, context.Context
 	}
 
 	ctx := context.Background()
-	if err := migrations.Apply(ctx, db, 0); err != nil {
+	if err := migrations.Apply(ctx, db, 0, false); err != nil {
 		t.Fatalf("apply migrations: %v", err)
 	}
 

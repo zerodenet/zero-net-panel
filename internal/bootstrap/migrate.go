@@ -15,5 +15,5 @@ func AutoMigrate(ctx context.Context, db *gorm.DB) error {
 
 // ApplyMigrations executes schema migrations up to the target version (0 = latest).
 func ApplyMigrations(ctx context.Context, db *gorm.DB, targetVersion uint64) error {
-	return migrations.Apply(ctx, db, targetVersion)
+	return migrations.Apply(ctx, db, targetVersion, false)
 }

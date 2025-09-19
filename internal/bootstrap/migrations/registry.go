@@ -8,6 +8,7 @@ import (
 
 	"gorm.io/gorm"
 
+	"github.com/zero-net-panel/zero-net-panel/internal/bootstrap/seed"
 	"github.com/zero-net-panel/zero-net-panel/internal/repository"
 )
 
@@ -78,7 +79,10 @@ func init() {
 }
 
 // Apply executes migrations up to targetVersion (0 denotes latest).
-func Apply(ctx context.Context, db *gorm.DB, targetVersion uint64) error {
+// When withSeed is true, demo seed data will be populated after the
+// migrations have been successfully applied. Seeding currently requires
+// running against the latest schema (target version 0).
+func Apply(ctx context.Context, db *gorm.DB, targetVersion uint64, withSeed bool) error {
 	if db == nil {
 		return fmt.Errorf("migrations: database connection is required")
 	}
@@ -128,6 +132,16 @@ func Apply(ctx context.Context, db *gorm.DB, targetVersion uint64) error {
 			return nil
 		}); err != nil {
 			return fmt.Errorf("migrations: apply %d (%s): %w", m.Version, m.Name, err)
+		}
+	}
+
+	if withSeed {
+		if targetVersion != 0 {
+			return fmt.Errorf("migrations: seed demo data requires latest schema (target version 0), got %d", targetVersion)
+		}
+
+		if err := seed.Run(ctx, db); err != nil {
+			return fmt.Errorf("migrations: seed demo data: %w", err)
 		}
 	}
 
