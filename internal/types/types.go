@@ -562,6 +562,7 @@ type OrderDetail struct {
 	UserID        uint64         `json:"user_id"`
 	Status        string         `json:"status"`
 	TotalCents    int64          `json:"total_cents"`
+	RefundedCents int64          `json:"refunded_cents"`
 	Currency      string         `json:"currency"`
 	PaymentMethod string         `json:"payment_method"`
 	PlanID        *uint64        `json:"plan_id,omitempty"`
@@ -569,6 +570,7 @@ type OrderDetail struct {
 	Metadata      map[string]any `json:"metadata,omitempty"`
 	PaidAt        *int64         `json:"paid_at,omitempty"`
 	CancelledAt   *int64         `json:"cancelled_at,omitempty"`
+	RefundedAt    *int64         `json:"refunded_at,omitempty"`
 	CreatedAt     int64          `json:"created_at"`
 	UpdatedAt     int64          `json:"updated_at"`
 	Items         []OrderItem    `json:"items"`
@@ -607,6 +609,12 @@ type UserOrderResponse struct {
 // UserGetOrderRequest 用户订单详情请求。
 type UserGetOrderRequest struct {
 	OrderID uint64 `path:"id"`
+}
+
+// UserCancelOrderRequest 用户主动取消订单。
+type UserCancelOrderRequest struct {
+	OrderID uint64 `path:"id"`
+	Reason  string `json:"reason,omitempty"`
 }
 
 // AdminListOrdersRequest 管理端订单列表查询。
@@ -648,4 +656,28 @@ type AdminGetOrderRequest struct {
 // AdminOrderResponse 管理端订单详情响应。
 type AdminOrderResponse struct {
 	Order AdminOrderDetail `json:"order"`
+}
+
+// AdminMarkOrderPaidRequest 管理端手动标记订单为已支付。
+type AdminMarkOrderPaidRequest struct {
+	OrderID       uint64 `path:"id"`
+	PaymentMethod string `json:"payment_method,omitempty"`
+	PaidAt        *int64 `json:"paid_at,omitempty"`
+	Note          string `json:"note,omitempty"`
+}
+
+// AdminCancelOrderRequest 管理端取消订单。
+type AdminCancelOrderRequest struct {
+	OrderID     uint64 `path:"id"`
+	Reason      string `json:"reason,omitempty"`
+	CancelledAt *int64 `json:"cancelled_at,omitempty"`
+}
+
+// AdminRefundOrderRequest 管理端发起退款。
+type AdminRefundOrderRequest struct {
+	OrderID     uint64         `path:"id"`
+	AmountCents int64          `json:"amount_cents"`
+	Reason      string         `json:"reason,omitempty"`
+	Metadata    map[string]any `json:"metadata,omitempty"`
+	RefundAt    *int64         `json:"refund_at,omitempty"`
 }

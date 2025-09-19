@@ -71,3 +71,23 @@ func UserGetOrderHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 		httpx.OkJsonCtx(r.Context(), w, resp)
 	}
 }
+
+// UserCancelOrderHandler allows users to cancel their own pending orders.
+func UserCancelOrderHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var req types.UserCancelOrderRequest
+		if err := httpx.Parse(r, &req); err != nil {
+			handlercommon.RespondError(w, r, repository.ErrInvalidArgument)
+			return
+		}
+
+		logic := userorder.NewCancelLogic(r.Context(), svcCtx)
+		resp, err := logic.Cancel(&req)
+		if err != nil {
+			handlercommon.RespondError(w, r, err)
+			return
+		}
+
+		httpx.OkJsonCtx(r.Context(), w, resp)
+	}
+}

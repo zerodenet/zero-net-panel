@@ -52,6 +52,7 @@ type BalanceRepository interface {
 	GetBalance(ctx context.Context, userID uint64) (UserBalance, error)
 	ListTransactions(ctx context.Context, userID uint64, opts ListBalanceTransactionsOptions) ([]BalanceTransaction, int64, error)
 	ApplyTransaction(ctx context.Context, userID uint64, tx BalanceTransaction) (BalanceTransaction, UserBalance, error)
+	RecordRefund(ctx context.Context, userID uint64, tx BalanceTransaction) (BalanceTransaction, UserBalance, error)
 }
 
 type balanceRepository struct {
@@ -211,4 +212,21 @@ func (r *balanceRepository) ApplyTransaction(ctx context.Context, userID uint64,
 	}
 
 	return resultTx, resultBalance, nil
+}
+
+func (r *balanceRepository) RecordRefund(ctx context.Context, userID uint64, tx BalanceTransaction) (BalanceTransaction, UserBalance, error) {
+	if err := ctx.Err(); err != nil {
+		return BalanceTransaction{}, UserBalance{}, err
+	}
+	if tx.AmountCents <= 0 {
+		return BalanceTransaction{}, UserBalance{}, ErrInvalidArgument
+	}
+
+	if strings.TrimSpace(strings.ToLower(tx.Type)) == "" {
+		tx.Type = "refund"
+	} else {
+		tx.Type = strings.ToLower(strings.TrimSpace(tx.Type))
+	}
+
+	return r.ApplyTransaction(ctx, userID, tx)
 }

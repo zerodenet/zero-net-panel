@@ -15,6 +15,18 @@ service znp {
     @doc "Get order detail"
     @handler AdminGetOrder
     get /admin/orders/:id(AdminGetOrderRequest) returns (AdminOrderResponse)
+
+    @doc "Manually mark an order as paid"
+    @handler AdminMarkOrderPaid
+    post /admin/orders/:id/pay(AdminMarkOrderPaidRequest) returns (AdminOrderResponse)
+
+    @doc "Cancel an order"
+    @handler AdminCancelOrder
+    post /admin/orders/:id/cancel(AdminCancelOrderRequest) returns (AdminOrderResponse)
+
+    @doc "Refund an order via balance"
+    @handler AdminRefundOrder
+    post /admin/orders/:id/refund(AdminRefundOrderRequest) returns (AdminOrderResponse)
 }
 
 type AdminListOrdersRequest {
@@ -64,4 +76,25 @@ type AdminGetOrderRequest {
 
 type AdminOrderResponse {
     order AdminOrderDetail
+}
+
+type AdminMarkOrderPaidRequest {
+    id uint64
+    payment_method string(optional)
+    paid_at int64(optional)
+    note string(optional)
+}
+
+type AdminCancelOrderRequest {
+    id uint64
+    reason string(optional)
+    cancelled_at int64(optional)
+}
+
+type AdminRefundOrderRequest {
+    id uint64
+    amount_cents int64
+    reason string(optional)
+    metadata map[string]any(optional)
+    refund_at int64(optional)
 }

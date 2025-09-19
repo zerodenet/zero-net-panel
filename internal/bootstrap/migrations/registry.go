@@ -59,6 +59,15 @@ var migrationRegistry = []Migration{
 			)
 		},
 	},
+	{
+		Version: 2024071501,
+		Name:    "order-refund-tracking",
+		Up: func(ctx context.Context, db *gorm.DB) error {
+			return db.WithContext(ctx).AutoMigrate(
+				&repository.Order{},
+			)
+		},
+	},
 }
 
 func init() {
