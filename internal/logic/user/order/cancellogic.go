@@ -46,12 +46,17 @@ func (l *CancelLogic) Cancel(req *types.UserCancelOrderRequest) (*types.UserOrde
 		return nil, repository.ErrForbidden
 	}
 
+	paymentsMap, err := l.svcCtx.Repositories.Order.ListPayments(l.ctx, []uint64{order.ID})
+	if err != nil {
+		return nil, err
+	}
+
 	if strings.EqualFold(order.Status, repository.OrderStatusCancelled) {
 		balance, err := l.svcCtx.Repositories.Balance.GetBalance(l.ctx, user.ID)
 		if err != nil {
 			return nil, err
 		}
-		detail := orderutil.ToOrderDetail(order, items)
+		detail := orderutil.ToOrderDetail(order, items, nil, paymentsMap[order.ID])
 		resp := types.UserOrderResponse{
 			Order:   detail,
 			Balance: orderutil.ToBalanceSnapshot(balance),
@@ -60,7 +65,7 @@ func (l *CancelLogic) Cancel(req *types.UserCancelOrderRequest) (*types.UserOrde
 	}
 
 	if !strings.EqualFold(order.Status, repository.OrderStatusPending) {
-		if !(strings.EqualFold(order.Status, repository.OrderStatusPaid) && order.TotalCents == 0) {
+		if !strings.EqualFold(order.Status, repository.OrderStatusPaid) || order.TotalCents != 0 {
 			return nil, repository.ErrInvalidArgument
 		}
 	}
@@ -100,7 +105,7 @@ func (l *CancelLogic) Cancel(req *types.UserCancelOrderRequest) (*types.UserOrde
 		return nil, err
 	}
 
-	detail := orderutil.ToOrderDetail(updated, items)
+	detail := orderutil.ToOrderDetail(updated, items, nil, paymentsMap[order.ID])
 	resp := types.UserOrderResponse{
 		Order:   detail,
 		Balance: orderutil.ToBalanceSnapshot(balance),

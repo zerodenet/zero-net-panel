@@ -1,6 +1,8 @@
 package orderutil
 
 import (
+	"strings"
+
 	"github.com/zero-net-panel/zero-net-panel/internal/repository"
 	"github.com/zero-net-panel/zero-net-panel/internal/types"
 )
@@ -23,12 +25,13 @@ func ToOrderItem(item repository.OrderItem) types.OrderItem {
 }
 
 // ToOrderDetail hydrates an order with its items.
-func ToOrderDetail(order repository.Order, items []repository.OrderItem, refunds ...[]repository.OrderRefund) types.OrderDetail {
+func ToOrderDetail(order repository.Order, items []repository.OrderItem, refunds []repository.OrderRefund, payments []repository.OrderPayment) types.OrderDetail {
 	detail := types.OrderDetail{
 		ID:            order.ID,
 		Number:        order.Number,
 		UserID:        order.UserID,
 		Status:        order.Status,
+		PaymentStatus: order.PaymentStatus,
 		TotalCents:    order.TotalCents,
 		RefundedCents: order.RefundedCents,
 		Currency:      order.Currency,
@@ -41,6 +44,22 @@ func ToOrderDetail(order repository.Order, items []repository.OrderItem, refunds
 
 	if order.PlanID != nil {
 		detail.PlanID = order.PlanID
+	}
+
+	if strings.TrimSpace(order.PaymentIntentID) != "" {
+		detail.PaymentIntentID = order.PaymentIntentID
+	}
+
+	if strings.TrimSpace(order.PaymentReference) != "" {
+		detail.PaymentReference = order.PaymentReference
+	}
+
+	if strings.TrimSpace(order.PaymentFailureCode) != "" {
+		detail.PaymentFailureCode = order.PaymentFailureCode
+	}
+
+	if strings.TrimSpace(order.PaymentFailureReason) != "" {
+		detail.PaymentFailureMessage = order.PaymentFailureReason
 	}
 
 	if order.PaidAt != nil {
@@ -58,15 +77,21 @@ func ToOrderDetail(order repository.Order, items []repository.OrderItem, refunds
 		detail.RefundedAt = &refunded
 	}
 
-	if len(items) == 0 {
-		detail.Items = []types.OrderItem{}
-		return detail
-	}
-
 	detail.Items = make([]types.OrderItem, 0, len(items))
 	for _, item := range items {
 		detail.Items = append(detail.Items, ToOrderItem(item))
 	}
+
+	detail.Refunds = make([]types.OrderRefund, 0, len(refunds))
+	for _, refund := range refunds {
+		detail.Refunds = append(detail.Refunds, ToOrderRefund(refund))
+	}
+
+	detail.Payments = make([]types.OrderPayment, 0, len(payments))
+	for _, payment := range payments {
+		detail.Payments = append(detail.Payments, ToOrderPayment(payment))
+	}
+
 	return detail
 }
 
@@ -97,7 +122,7 @@ func ToBalanceSnapshot(balance repository.UserBalance) types.BalanceSnapshot {
 func ToBalanceTransactionView(tx repository.BalanceTransaction) types.BalanceTransactionSummary {
 	return types.BalanceTransactionSummary{
 		ID:                tx.ID,
-		Type:              tx.Type,
+		EntryType:         tx.Type,
 		AmountCents:       tx.AmountCents,
 		Currency:          tx.Currency,
 		BalanceAfterCents: tx.BalanceAfterCents,
@@ -105,5 +130,24 @@ func ToBalanceTransactionView(tx repository.BalanceTransaction) types.BalanceTra
 		Description:       tx.Description,
 		Metadata:          tx.Metadata,
 		CreatedAt:         tx.CreatedAt.UTC().Unix(),
+	}
+}
+
+func ToOrderPayment(payment repository.OrderPayment) types.OrderPayment {
+	return types.OrderPayment{
+		ID:             payment.ID,
+		OrderID:        payment.OrderID,
+		Provider:       payment.Provider,
+		Method:         payment.Method,
+		IntentID:       payment.IntentID,
+		Reference:      payment.Reference,
+		Status:         payment.Status,
+		AmountCents:    payment.AmountCents,
+		Currency:       payment.Currency,
+		FailureCode:    payment.FailureCode,
+		FailureMessage: payment.FailureMessage,
+		Metadata:       payment.Metadata,
+		CreatedAt:      payment.CreatedAt.UTC().Unix(),
+		UpdatedAt:      payment.UpdatedAt.UTC().Unix(),
 	}
 }

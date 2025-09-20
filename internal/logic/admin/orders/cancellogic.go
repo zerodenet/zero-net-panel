@@ -46,8 +46,13 @@ func (l *CancelLogic) Cancel(req *types.AdminCancelOrderRequest) (*types.AdminOr
 		return nil, err
 	}
 
+	paymentsMap, err := l.svcCtx.Repositories.Order.ListPayments(l.ctx, []uint64{order.ID})
+	if err != nil {
+		return nil, err
+	}
+
 	if strings.EqualFold(order.Status, repository.OrderStatusCancelled) {
-		return l.buildResponse(order, items)
+		return l.buildResponse(order, items, paymentsMap[order.ID])
 	}
 
 	if strings.EqualFold(order.Status, repository.OrderStatusPaid) {
@@ -95,11 +100,11 @@ func (l *CancelLogic) Cancel(req *types.AdminCancelOrderRequest) (*types.AdminOr
 		return nil, err
 	}
 
-	return l.buildResponse(updated, items)
+	return l.buildResponse(updated, items, paymentsMap[order.ID])
 }
 
-func (l *CancelLogic) buildResponse(order repository.Order, items []repository.OrderItem) (*types.AdminOrderResponse, error) {
-	detail := orderutil.ToOrderDetail(order, items)
+func (l *CancelLogic) buildResponse(order repository.Order, items []repository.OrderItem, payments []repository.OrderPayment) (*types.AdminOrderResponse, error) {
+	detail := orderutil.ToOrderDetail(order, items, nil, payments)
 	u, err := l.svcCtx.Repositories.User.Get(l.ctx, order.UserID)
 	if err != nil {
 		return nil, err
@@ -114,5 +119,5 @@ func (l *CancelLogic) buildResponse(order repository.Order, items []repository.O
 			},
 		},
 	}
-  return &resp, nil
+	return &resp, nil
 }

@@ -28,30 +28,39 @@ type OrderRefund struct {
 
 // OrderDetail 订单详情。
 type OrderDetail struct {
-	ID            uint64         `json:"id"`
-	Number        string         `json:"number"`
-	UserID        uint64         `json:"user_id"`
-	Status        string         `json:"status"`
-	TotalCents    int64          `json:"total_cents"`
-	RefundedCents int64          `json:"refunded_cents"`
-	Currency      string         `json:"currency"`
-	PaymentMethod string         `json:"payment_method"`
-	PlanID        *uint64        `json:"plan_id,omitempty"`
-	PlanSnapshot  map[string]any `json:"plan_snapshot,omitempty"`
-	Metadata      map[string]any `json:"metadata,omitempty"`
-	PaidAt        *int64         `json:"paid_at,omitempty"`
-	CancelledAt   *int64         `json:"cancelled_at,omitempty"`
-	RefundedAt    *int64         `json:"refunded_at,omitempty"`
-	CreatedAt     int64          `json:"created_at"`
-	UpdatedAt     int64          `json:"updated_at"`
-	Items         []OrderItem    `json:"items"`
-	Refunds       []OrderRefund  `json:"refunds,omitempty"`
+	ID                    uint64         `json:"id"`
+	Number                string         `json:"number"`
+	UserID                uint64         `json:"user_id"`
+	Status                string         `json:"status"`
+	PaymentStatus         string         `json:"payment_status"`
+	TotalCents            int64          `json:"total_cents"`
+	RefundedCents         int64          `json:"refunded_cents"`
+	Currency              string         `json:"currency"`
+	PaymentMethod         string         `json:"payment_method"`
+	PaymentIntentID       string         `json:"payment_intent_id,omitempty"`
+	PaymentReference      string         `json:"payment_reference,omitempty"`
+	PaymentFailureCode    string         `json:"payment_failure_code,omitempty"`
+	PaymentFailureMessage string         `json:"payment_failure_message,omitempty"`
+	PlanID                *uint64        `json:"plan_id,omitempty"`
+	PlanSnapshot          map[string]any `json:"plan_snapshot,omitempty"`
+	Metadata              map[string]any `json:"metadata,omitempty"`
+	PaidAt                *int64         `json:"paid_at,omitempty"`
+	CancelledAt           *int64         `json:"cancelled_at,omitempty"`
+	RefundedAt            *int64         `json:"refunded_at,omitempty"`
+	CreatedAt             int64          `json:"created_at"`
+	UpdatedAt             int64          `json:"updated_at"`
+	Items                 []OrderItem    `json:"items"`
+	Refunds               []OrderRefund  `json:"refunds,omitempty"`
+	Payments              []OrderPayment `json:"payments,omitempty"`
 }
 
 // UserCreateOrderRequest 创建订单请求。
 type UserCreateOrderRequest struct {
-	PlanID   uint64 `json:"plan_id"`
-	Quantity int    `json:"quantity"`
+	PlanID           uint64 `json:"plan_id"`
+	Quantity         int    `json:"quantity"`
+	PaymentMethod    string `json:"payment_method,omitempty"`
+	PaymentChannel   string `json:"payment_channel,omitempty"`
+	PaymentReturnURL string `json:"payment_return_url,omitempty"`
 }
 
 // UserOrderListRequest 用户订单列表查询参数。
@@ -60,6 +69,7 @@ type UserOrderListRequest struct {
 	PerPage       int    `form:"per_page"`
 	Status        string `form:"status"`
 	PaymentMethod string `form:"payment_method"`
+	PaymentStatus string `form:"payment_status"`
 	Number        string `form:"number"`
 	Sort          string `form:"sort"`
 	Direction     string `form:"direction"`
@@ -95,10 +105,29 @@ type AdminListOrdersRequest struct {
 	PerPage       int    `form:"per_page"`
 	Status        string `form:"status"`
 	PaymentMethod string `form:"payment_method"`
+	PaymentStatus string `form:"payment_status"`
 	Number        string `form:"number"`
 	Sort          string `form:"sort"`
 	Direction     string `form:"direction"`
 	UserID        uint64 `form:"user_id"`
+}
+
+// OrderPayment 外部支付流水。
+type OrderPayment struct {
+	ID             uint64         `json:"id"`
+	OrderID        uint64         `json:"order_id"`
+	Provider       string         `json:"provider"`
+	Method         string         `json:"method"`
+	IntentID       string         `json:"intent_id"`
+	Reference      string         `json:"reference"`
+	Status         string         `json:"status"`
+	AmountCents    int64          `json:"amount_cents"`
+	Currency       string         `json:"currency"`
+	FailureCode    string         `json:"failure_code"`
+	FailureMessage string         `json:"failure_message"`
+	Metadata       map[string]any `json:"metadata"`
+	CreatedAt      int64          `json:"created_at"`
+	UpdatedAt      int64          `json:"updated_at"`
 }
 
 // OrderUserSummary 订单关联用户摘要。
@@ -155,4 +184,15 @@ type AdminRefundOrderRequest struct {
 	Metadata      map[string]any `json:"metadata,omitempty"`
 	RefundAt      *int64         `json:"refund_at,omitempty"`
 	CreditBalance bool           `json:"credit_balance,omitempty"`
+}
+
+// AdminPaymentCallbackRequest 外部支付回调请求。
+type AdminPaymentCallbackRequest struct {
+	OrderID        uint64 `json:"order_id"`
+	PaymentID      uint64 `json:"payment_id"`
+	Status         string `json:"status"`
+	Reference      string `json:"reference,omitempty"`
+	FailureCode    string `json:"failure_code,omitempty"`
+	FailureMessage string `json:"failure_message,omitempty"`
+	PaidAt         *int64 `json:"paid_at,omitempty"`
 }

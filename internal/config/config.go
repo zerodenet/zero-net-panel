@@ -156,8 +156,8 @@ func (c *Config) Normalize() {
 	c.Metrics.Normalize()
 	c.Admin.Normalize()
 	c.GRPC.Normalize()
-	c.RestConf.Middlewares.Prometheus = c.Metrics.Enabled()
-	c.RestConf.Middlewares.Metrics = c.Metrics.Enabled()
+	c.Middlewares.Prometheus = c.Metrics.Enabled()
+	c.Middlewares.Metrics = c.Metrics.Enabled()
 }
 
 func boolPtr(v bool) *bool {

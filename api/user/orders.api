@@ -3,7 +3,7 @@ syntax = "v1"
 import "shared/types.api"
 
 @server (
-    name: znp.api
+    name: znp
     prefix: /api/v1
     group: user/orders
 )
@@ -32,6 +32,9 @@ service znp {
 type UserCreateOrderRequest {
     plan_id uint64
     quantity int
+    payment_method string(optional)
+    payment_channel string(optional)
+    payment_return_url string(optional)
 }
 
 type UserOrderListRequest {
@@ -39,6 +42,7 @@ type UserOrderListRequest {
     per_page int
     status string
     payment_method string
+    payment_status string
     number string
     sort string
     direction string

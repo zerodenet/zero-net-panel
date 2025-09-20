@@ -10,6 +10,8 @@ import (
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
+
+	"github.com/zero-net-panel/zero-net-panel/internal/testutil"
 )
 
 type testModelA struct {
@@ -26,6 +28,8 @@ func (testModelB) TableName() string { return "test_model_b" }
 
 func openSQLite(t *testing.T) *gorm.DB {
 	t.Helper()
+
+	testutil.RequireSQLite(t)
 
 	dsn := fmt.Sprintf("file:%s?mode=memory&cache=shared", t.Name())
 	db, err := gorm.Open(sqlite.Open(dsn), &gorm.Config{

@@ -49,6 +49,7 @@ func (l *ListLogic) List(req *types.UserOrderListRequest) (*types.UserOrderListR
 		PerPage:       perPage,
 		Status:        req.Status,
 		PaymentMethod: req.PaymentMethod,
+		PaymentStatus: req.PaymentStatus,
 		Number:        req.Number,
 		Sort:          req.Sort,
 		Direction:     req.Direction,
@@ -76,11 +77,17 @@ func (l *ListLogic) List(req *types.UserOrderListRequest) (*types.UserOrderListR
 		return nil, err
 	}
 
+	paymentsMap, err := l.svcCtx.Repositories.Order.ListPayments(l.ctx, ids)
+	if err != nil {
+		return nil, err
+	}
+
 	entries := make([]types.OrderDetail, 0, len(orders))
 	for _, order := range orders {
 		items := itemsMap[order.ID]
 		refunds := refundsMap[order.ID]
-		entries = append(entries, orderutil.ToOrderDetail(order, items, refunds))
+		payments := paymentsMap[order.ID]
+		entries = append(entries, orderutil.ToOrderDetail(order, items, refunds, payments))
 	}
 
 	pagination := types.PaginationMeta{

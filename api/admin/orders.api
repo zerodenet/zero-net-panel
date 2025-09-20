@@ -3,7 +3,7 @@ syntax = "v1"
 import "shared/types.api"
 
 @server (
-    name: znp.api
+    name: znp
     prefix: /api/v1
     group: admin/orders
 )
@@ -27,6 +27,10 @@ service znp {
     @doc "Refund an order via balance"
     @handler AdminRefundOrder
     post /admin/orders/:id/refund(AdminRefundOrderRequest) returns (AdminOrderResponse)
+
+    @doc "Process external payment callback"
+    @handler AdminPaymentCallback
+    post /admin/orders/payments/callback(AdminPaymentCallbackRequest) returns (AdminOrderResponse)
 }
 
 type AdminListOrdersRequest {
@@ -34,6 +38,7 @@ type AdminListOrdersRequest {
     per_page int
     status string
     payment_method string
+    payment_status string
     number string
     sort string
     direction string
@@ -51,6 +56,11 @@ type AdminOrderDetail {
     number string
     user_id uint64
     status string
+    payment_status string
+    payment_intent_id *string
+    payment_reference *string
+    payment_failure_code *string
+    payment_failure_message *string
     total_cents int64
     currency string
     payment_method string
@@ -59,9 +69,13 @@ type AdminOrderDetail {
     metadata map[string]any
     paid_at *int64
     cancelled_at *int64
+    refunded_cents int64
+    refunded_at *int64
     created_at int64
     updated_at int64
     items []OrderItem
+    refunds []OrderRefund
+    payments []OrderPayment
     user OrderUserSummary
 }
 
@@ -83,6 +97,8 @@ type AdminMarkOrderPaidRequest {
     payment_method string(optional)
     paid_at int64(optional)
     note string(optional)
+    reference string(optional)
+    charge_balance bool(optional)
 }
 
 type AdminCancelOrderRequest {
@@ -97,4 +113,15 @@ type AdminRefundOrderRequest {
     reason string(optional)
     metadata map[string]any(optional)
     refund_at int64(optional)
+    credit_balance bool(optional)
+}
+
+type AdminPaymentCallbackRequest {
+    order_id uint64
+    payment_id uint64
+    status string
+    reference string(optional)
+    failure_code string(optional)
+    failure_message string(optional)
+    paid_at int64(optional)
 }
