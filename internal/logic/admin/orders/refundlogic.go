@@ -66,7 +66,10 @@ func (l *RefundLogic) Refund(req *types.AdminRefundOrderRequest) (*types.AdminOr
 		return nil, repository.ErrInvalidArgument
 	}
 
-	var updated repository.Order
+	var (
+		updated       repository.Order
+		refundRecords []repository.OrderRefund
+	)
 	err = l.svcCtx.DB.WithContext(l.ctx).Transaction(func(tx *gorm.DB) error {
 		orderRepo, err := repository.NewOrderRepository(tx)
 		if err != nil {
@@ -106,6 +109,28 @@ func (l *RefundLogic) Refund(req *types.AdminRefundOrderRequest) (*types.AdminOr
 
 		createdTx, _, err := balanceRepo.RecordRefund(l.ctx, order.UserID, txRecord)
 		if err != nil {
+			return err
+		}
+
+		refundEntryMetadata := map[string]any{
+			"balance_tx_id": createdTx.ID,
+			"operator":      actor.Email,
+		}
+		for k, v := range req.Metadata {
+			refundEntryMetadata[k] = v
+		}
+		if reason != "" {
+			refundEntryMetadata["reason"] = reason
+		}
+
+		refundRecord := repository.OrderRefund{
+			OrderID:     order.ID,
+			AmountCents: req.AmountCents,
+			Reason:      reason,
+			Reference:   txRecord.Reference,
+			Metadata:    refundEntryMetadata,
+		}
+		if _, err := orderRepo.CreateRefund(l.ctx, refundRecord); err != nil {
 			return err
 		}
 

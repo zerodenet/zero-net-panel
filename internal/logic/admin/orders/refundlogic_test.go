@@ -13,11 +13,14 @@ import (
 	"github.com/zero-net-panel/zero-net-panel/internal/repository"
 	"github.com/zero-net-panel/zero-net-panel/internal/security"
 	"github.com/zero-net-panel/zero-net-panel/internal/svc"
+	"github.com/zero-net-panel/zero-net-panel/internal/testutil"
 	"github.com/zero-net-panel/zero-net-panel/internal/types"
 )
 
 func setupAdminOrderTestContext(t *testing.T) (*svc.ServiceContext, func()) {
 	t.Helper()
+
+	testutil.RequireSQLite(t)
 
 	db, err := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{})
 	require.NoError(t, err)

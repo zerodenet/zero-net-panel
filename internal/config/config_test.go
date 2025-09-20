@@ -35,20 +35,20 @@ func TestConfigNormalizeSyncsMiddlewares(t *testing.T) {
 
 	cfg.Normalize()
 
-	if !cfg.RestConf.Middlewares.Prometheus {
+	if !cfg.Middlewares.Prometheus {
 		t.Fatal("prometheus middleware should be enabled when metrics is on")
 	}
-	if !cfg.RestConf.Middlewares.Metrics {
+	if !cfg.Middlewares.Metrics {
 		t.Fatal("metrics middleware should be enabled when metrics is on")
 	}
 
 	cfg.Metrics.Enable = false
 	cfg.Normalize()
 
-	if cfg.RestConf.Middlewares.Prometheus {
+	if cfg.Middlewares.Prometheus {
 		t.Fatal("prometheus middleware should be disabled when metrics is off")
 	}
-	if cfg.RestConf.Middlewares.Metrics {
+	if cfg.Middlewares.Metrics {
 		t.Fatal("metrics middleware should be disabled when metrics is off")
 	}
 }
