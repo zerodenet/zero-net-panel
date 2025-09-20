@@ -48,11 +48,11 @@ func (l *BalanceLogic) Balance(req *types.UserBalanceRequest) (*types.UserBalanc
 		return nil, err
 	}
 
-	opts := repository.ListBalanceTransactionsOptions{
-		Page:    page,
-		PerPage: perPage,
-		Type:    req.Type,
-	}
+        opts := repository.ListBalanceTransactionsOptions{
+                Page:    page,
+                PerPage: perPage,
+                Type:    req.EntryType,
+        }
 	transactions, total, err := l.svcCtx.Repositories.Balance.ListTransactions(l.ctx, user.ID, opts)
 	if err != nil {
 		return nil, err

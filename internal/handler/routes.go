@@ -165,6 +165,11 @@ func RegisterHandlers(server *rest.Server, svcCtx *svc.ServiceContext) {
 			Path:    "/orders/:id/refund",
 			Handler: adminOrders.AdminRefundOrderHandler(svcCtx),
 		},
+		{
+			Method:  http.MethodPost,
+			Path:    "/orders/payments/callback",
+			Handler: adminOrders.AdminPaymentCallbackHandler(svcCtx),
+		},
 	}
 	adminRoutes = rest.WithMiddlewares([]rest.Middleware{authMiddleware.RequireRoles("admin")}, adminRoutes...)
 	adminPrefix := svcCtx.Config.Admin.RoutePrefix

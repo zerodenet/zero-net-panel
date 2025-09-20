@@ -33,10 +33,14 @@ func NewCreateLogic(ctx context.Context, svcCtx *svc.ServiceContext) *CreateLogi
 	}
 }
 
-// Create issues an order for the given plan and settles payment via balance.
+// Create issues an order for the given plan and settles payment according to the selected method.
 func (l *CreateLogic) Create(req *types.UserCreateOrderRequest) (resp *types.UserOrderResponse, err error) {
 	start := time.Now()
-	paymentMethod := repository.PaymentMethodBalance
+	method := strings.TrimSpace(strings.ToLower(req.PaymentMethod))
+	if method == "" {
+		method = repository.PaymentMethodBalance
+	}
+	paymentMethod := method
 	defer func() {
 		result := "success"
 		if err != nil {
@@ -44,6 +48,10 @@ func (l *CreateLogic) Create(req *types.UserCreateOrderRequest) (resp *types.Use
 		}
 		metrics.ObserveOrderCreate(paymentMethod, result, time.Since(start))
 	}()
+
+	if method != repository.PaymentMethodBalance && method != repository.PaymentMethodExternal {
+		return nil, repository.ErrInvalidArgument
+	}
 
 	user, ok := security.UserFromContext(l.ctx)
 	if !ok {
@@ -71,11 +79,19 @@ func (l *CreateLogic) Create(req *types.UserCreateOrderRequest) (resp *types.Use
 		quantity = 10
 	}
 
+	channel := strings.TrimSpace(strings.ToLower(req.PaymentChannel))
+	returnURL := strings.TrimSpace(req.PaymentReturnURL)
+
 	totalCents := plan.PriceCents * int64(quantity)
+	if method == repository.PaymentMethodExternal && totalCents > 0 && channel == "" {
+		return nil, repository.ErrInvalidArgument
+	}
+
 	orderNumber := repository.GenerateOrderNumber()
 
 	var createdOrder repository.Order
 	var createdItems []repository.OrderItem
+	var createdPayments []repository.OrderPayment
 	var balance repository.UserBalance
 	var balanceTx repository.BalanceTransaction
 
@@ -90,10 +106,16 @@ func (l *CreateLogic) Create(req *types.UserCreateOrderRequest) (resp *types.Use
 		}
 
 		now := time.Now().UTC()
-		currency := plan.Currency
-		if strings.TrimSpace(currency) == "" {
-			currency = balance.Currency
-			if strings.TrimSpace(currency) == "" {
+		existingBalance, err := balanceRepo.GetBalance(l.ctx, user.ID)
+		if err != nil {
+			return err
+		}
+		balance = existingBalance
+
+		currency := strings.TrimSpace(plan.Currency)
+		if currency == "" {
+			currency = strings.TrimSpace(balance.Currency)
+			if currency == "" {
 				currency = "CNY"
 			}
 		}
@@ -112,58 +134,67 @@ func (l *CreateLogic) Create(req *types.UserCreateOrderRequest) (resp *types.Use
 			"tags":                plan.Tags,
 		}
 
+		metadata := map[string]any{
+			"quantity": quantity,
+		}
+		if channel != "" {
+			metadata["payment_channel"] = channel
+		}
+		if returnURL != "" {
+			metadata["payment_return_url"] = returnURL
+		}
+
 		orderModel := repository.Order{
 			Number:        orderNumber,
 			UserID:        user.ID,
 			PlanID:        &plan.ID,
-			Status:        repository.OrderStatusPending,
-			PaymentMethod: repository.PaymentMethodBalance,
+			Status:        repository.OrderStatusPendingPayment,
+			PaymentMethod: method,
+			PaymentStatus: repository.OrderPaymentStatusPending,
 			TotalCents:    totalCents,
 			Currency:      currency,
-			Metadata: map[string]any{
-				"quantity": quantity,
-			},
-			PlanSnapshot: snapshot,
-			CreatedAt:    now,
-			UpdatedAt:    now,
+			Metadata:      metadata,
+			PlanSnapshot:  snapshot,
+			CreatedAt:     now,
+			UpdatedAt:     now,
 		}
 
-		paymentMethod = orderModel.PaymentMethod
-
-		if totalCents == 0 {
-			orderModel.Status = repository.OrderStatusPaid
-			paidAt := now
-			orderModel.PaidAt = &paidAt
-		}
-
-		if totalCents > 0 {
-			txRecord := repository.BalanceTransaction{
-				Type:        "purchase",
-				AmountCents: -totalCents,
-				Currency:    currency,
-				Reference:   fmt.Sprintf("order:%s", orderNumber),
-				Description: fmt.Sprintf("购买套餐 %s", plan.Name),
-				Metadata: map[string]any{
-					"plan_id":      plan.ID,
-					"quantity":     quantity,
-					"order_number": orderNumber,
-				},
+		if totalCents == 0 || method == repository.PaymentMethodBalance {
+			if totalCents > 0 {
+				txRecord := repository.BalanceTransaction{
+					Type:        "purchase",
+					AmountCents: -totalCents,
+					Currency:    currency,
+					Reference:   fmt.Sprintf("order:%s", orderNumber),
+					Description: fmt.Sprintf("购买套餐 %s", plan.Name),
+					Metadata: map[string]any{
+						"plan_id":      plan.ID,
+						"quantity":     quantity,
+						"order_number": orderNumber,
+					},
+				}
+				createdTx, updatedBalance, err := balanceRepo.ApplyTransaction(l.ctx, user.ID, txRecord)
+				if err != nil {
+					return err
+				}
+				balanceTx = createdTx
+				balance = updatedBalance
+				paidAt := createdTx.CreatedAt.UTC()
+				orderModel.Status = repository.OrderStatusPaid
+				orderModel.PaymentStatus = repository.OrderPaymentStatusSucceeded
+				orderModel.PaidAt = &paidAt
+			} else {
+				paidAt := now
+				orderModel.Status = repository.OrderStatusPaid
+				orderModel.PaymentStatus = repository.OrderPaymentStatusSucceeded
+				orderModel.PaidAt = &paidAt
 			}
-			createdTx, updatedBalance, err := balanceRepo.ApplyTransaction(l.ctx, user.ID, txRecord)
-			if err != nil {
-				return err
-			}
-			balanceTx = createdTx
-			balance = updatedBalance
-			paidAt := createdTx.CreatedAt
-			orderModel.Status = repository.OrderStatusPaid
-			orderModel.PaidAt = &paidAt
 		} else {
-			existingBalance, err := balanceRepo.GetBalance(l.ctx, user.ID)
-			if err != nil {
-				return err
+			intentID := fmt.Sprintf("%s-%s", channel, orderNumber)
+			if channel == "" {
+				intentID = orderNumber
 			}
-			balance = existingBalance
+			orderModel.PaymentIntentID = intentID
 		}
 
 		item := repository.OrderItem{
@@ -188,13 +219,39 @@ func (l *CreateLogic) Create(req *types.UserCreateOrderRequest) (resp *types.Use
 		}
 		createdOrder = created
 		createdItems = items
+
+		if method == repository.PaymentMethodExternal && totalCents > 0 {
+			paymentMetadata := map[string]any{}
+			if channel != "" {
+				paymentMetadata["channel"] = channel
+			}
+			if returnURL != "" {
+				paymentMetadata["return_url"] = returnURL
+			}
+			paymentRecord := repository.OrderPayment{
+				OrderID:     created.ID,
+				Provider:    channel,
+				Method:      method,
+				IntentID:    created.PaymentIntentID,
+				Status:      repository.OrderPaymentStatusPending,
+				AmountCents: totalCents,
+				Currency:    currency,
+				Metadata:    paymentMetadata,
+			}
+			payment, err := orderRepo.CreatePayment(l.ctx, paymentRecord)
+			if err != nil {
+				return err
+			}
+			createdPayments = append(createdPayments, payment)
+		}
+
 		return nil
 	})
 	if err != nil {
 		return nil, err
 	}
 
-	detail := orderutil.ToOrderDetail(createdOrder, createdItems)
+	detail := orderutil.ToOrderDetail(createdOrder, createdItems, nil, createdPayments)
 	balanceView := orderutil.ToBalanceSnapshot(balance)
 
 	var txView *types.BalanceTransactionSummary

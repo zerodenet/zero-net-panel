@@ -50,6 +50,11 @@ func (l *RefundLogic) Refund(req *types.AdminRefundOrderRequest) (*types.AdminOr
 		return nil, err
 	}
 
+	paymentsMap, err := l.svcCtx.Repositories.Order.ListPayments(l.ctx, []uint64{order.ID})
+	if err != nil {
+		return nil, err
+	}
+
 	if order.TotalCents <= 0 {
 		return nil, repository.ErrInvalidArgument
 	}
@@ -124,14 +129,34 @@ func (l *RefundLogic) Refund(req *types.AdminRefundOrderRequest) (*types.AdminOr
 			return err
 		}
 
-		if updatedOrder.RefundedCents >= order.TotalCents && !strings.EqualFold(updatedOrder.Status, repository.OrderStatusCancelled) {
+		refundRecord := repository.OrderRefund{
+			OrderID:     order.ID,
+			AmountCents: req.AmountCents,
+			Reason:      reason,
+			Reference:   fmt.Sprintf("balance_tx:%d", createdTx.ID),
+			Metadata:    metadata,
+			CreatedAt:   createdTx.CreatedAt,
+		}
+		if _, err := orderRepo.CreateRefund(l.ctx, refundRecord); err != nil {
+			return err
+		}
+
+		if updatedOrder.RefundedCents > 0 && updatedOrder.RefundedCents < order.TotalCents && !strings.EqualFold(updatedOrder.Status, repository.OrderStatusPartiallyRefunded) {
+			partialStatus := repository.UpdateOrderStatusParams{Status: repository.OrderStatusPartiallyRefunded}
+			partiallyUpdated, err := orderRepo.UpdateStatus(l.ctx, req.OrderID, partialStatus)
+			if err != nil {
+				return err
+			}
+			updatedOrder = partiallyUpdated
+		}
+
+		if updatedOrder.RefundedCents >= order.TotalCents && !strings.EqualFold(updatedOrder.Status, repository.OrderStatusRefunded) {
 			cancelledMetadata := map[string]any{
 				"cancelled_by":  actor.Email,
 				"cancel_reason": "refund_completed",
 			}
 			cancelParams := repository.UpdateOrderStatusParams{
-				Status:        repository.OrderStatusCancelled,
-				CancelledAt:   &createdTx.CreatedAt,
+				Status:        repository.OrderStatusRefunded,
 				MetadataPatch: cancelledMetadata,
 			}
 			cancelledOrder, err := orderRepo.UpdateStatus(l.ctx, req.OrderID, cancelParams)
@@ -148,7 +173,12 @@ func (l *RefundLogic) Refund(req *types.AdminRefundOrderRequest) (*types.AdminOr
 		return nil, err
 	}
 
-	detail := orderutil.ToOrderDetail(updated, items)
+	refundsMap, err := l.svcCtx.Repositories.Order.ListRefunds(l.ctx, []uint64{updated.ID})
+	if err != nil {
+		return nil, err
+	}
+
+	detail := orderutil.ToOrderDetail(updated, items, refundsMap[updated.ID], paymentsMap[order.ID])
 	u, err := l.svcCtx.Repositories.User.Get(l.ctx, updated.UserID)
 	if err != nil {
 		return nil, err

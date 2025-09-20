@@ -12,8 +12,9 @@ import (
 )
 
 const (
-	OrderStatusPending           = "pending"
+	OrderStatusPendingPayment    = "pending_payment"
 	OrderStatusPaid              = "paid"
+	OrderStatusPaymentFailed     = "payment_failed"
 	OrderStatusCancelled         = "cancelled"
 	OrderStatusPartiallyRefunded = "partially_refunded"
 	OrderStatusRefunded          = "refunded"
@@ -21,26 +22,37 @@ const (
 	PaymentMethodBalance  = "balance"
 	PaymentMethodManual   = "manual"
 	PaymentMethodExternal = "external"
+
+	OrderPaymentStatusPending   = "pending"
+	OrderPaymentStatusSucceeded = "succeeded"
+	OrderPaymentStatusFailed    = "failed"
 )
+
+const OrderStatusPending = OrderStatusPendingPayment
 
 // Order represents a billing order.
 type Order struct {
-	ID            uint64         `gorm:"primaryKey"`
-	Number        string         `gorm:"size:40;uniqueIndex"`
-	UserID        uint64         `gorm:"index"`
-	PlanID        *uint64        `gorm:"column:plan_id"`
-	Status        string         `gorm:"size:32"`
-	PaymentMethod string         `gorm:"size:32"`
-	TotalCents    int64          `gorm:"column:total_cents"`
-	Currency      string         `gorm:"size:16"`
-	RefundedCents int64          `gorm:"column:refunded_cents"`
-	RefundedAt    *time.Time     `gorm:"column:refunded_at"`
-	PaidAt        *time.Time     `gorm:"column:paid_at"`
-	CancelledAt   *time.Time     `gorm:"column:cancelled_at"`
-	Metadata      map[string]any `gorm:"serializer:json"`
-	PlanSnapshot  map[string]any `gorm:"serializer:json"`
-	CreatedAt     time.Time
-	UpdatedAt     time.Time
+	ID                   uint64         `gorm:"primaryKey"`
+	Number               string         `gorm:"size:40;uniqueIndex"`
+	UserID               uint64         `gorm:"index"`
+	PlanID               *uint64        `gorm:"column:plan_id"`
+	Status               string         `gorm:"size:32"`
+	PaymentMethod        string         `gorm:"size:32"`
+	PaymentStatus        string         `gorm:"size:32"`
+	TotalCents           int64          `gorm:"column:total_cents"`
+	Currency             string         `gorm:"size:16"`
+	RefundedCents        int64          `gorm:"column:refunded_cents"`
+	RefundedAt           *time.Time     `gorm:"column:refunded_at"`
+	PaidAt               *time.Time     `gorm:"column:paid_at"`
+	CancelledAt          *time.Time     `gorm:"column:cancelled_at"`
+	PaymentIntentID      string         `gorm:"size:64"`
+	PaymentReference     string         `gorm:"size:64"`
+	PaymentFailureCode   string         `gorm:"size:64"`
+	PaymentFailureReason string         `gorm:"size:255"`
+	Metadata             map[string]any `gorm:"serializer:json"`
+	PlanSnapshot         map[string]any `gorm:"serializer:json"`
+	CreatedAt            time.Time
+	UpdatedAt            time.Time
 }
 
 // TableName declares table mapping.
@@ -78,12 +90,34 @@ type OrderRefund struct {
 // TableName declares refund table mapping.
 func (OrderRefund) TableName() string { return "order_refunds" }
 
+// OrderPayment captures external payment attempts associated with an order.
+type OrderPayment struct {
+	ID             uint64         `gorm:"primaryKey"`
+	OrderID        uint64         `gorm:"index"`
+	Provider       string         `gorm:"size:64"`
+	Method         string         `gorm:"size:64"`
+	IntentID       string         `gorm:"size:64"`
+	Reference      string         `gorm:"size:64"`
+	Status         string         `gorm:"size:32"`
+	AmountCents    int64          `gorm:"column:amount_cents"`
+	Currency       string         `gorm:"size:16"`
+	FailureCode    string         `gorm:"size:64"`
+	FailureMessage string         `gorm:"size:255"`
+	Metadata       map[string]any `gorm:"serializer:json"`
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
+}
+
+// TableName declares order payments table mapping.
+func (OrderPayment) TableName() string { return "order_payments" }
+
 // ListOrdersOptions controls filtering.
 type ListOrdersOptions struct {
 	Page          int
 	PerPage       int
 	Status        string
 	PaymentMethod string
+	PaymentStatus string
 	Number        string
 	UserID        *uint64
 	Sort          string
@@ -99,8 +133,13 @@ type OrderRepository interface {
 	List(ctx context.Context, opts ListOrdersOptions) ([]Order, int64, error)
 	ListItems(ctx context.Context, orderIDs []uint64) (map[uint64][]OrderItem, error)
 	ListRefunds(ctx context.Context, orderIDs []uint64) (map[uint64][]OrderRefund, error)
+	ListPayments(ctx context.Context, orderIDs []uint64) (map[uint64][]OrderPayment, error)
 	UpdateStatus(ctx context.Context, id uint64, params UpdateOrderStatusParams) (Order, error)
 	AddRefund(ctx context.Context, id uint64, params AddRefundParams) (Order, error)
+	CreateRefund(ctx context.Context, refund OrderRefund) (OrderRefund, error)
+	CreatePayment(ctx context.Context, payment OrderPayment) (OrderPayment, error)
+	UpdatePaymentState(ctx context.Context, id uint64, params UpdateOrderPaymentStateParams) (Order, error)
+	UpdatePaymentRecord(ctx context.Context, id uint64, params UpdateOrderPaymentParams) (OrderPayment, error)
 }
 
 type orderRepository struct {
@@ -136,10 +175,13 @@ func (r *orderRepository) Create(ctx context.Context, order Order, items []Order
 		order.Number = GenerateOrderNumber()
 	}
 	if order.Status == "" {
-		order.Status = OrderStatusPending
+		order.Status = OrderStatusPendingPayment
 	}
 	if order.PaymentMethod == "" {
 		order.PaymentMethod = PaymentMethodBalance
+	}
+	if order.PaymentStatus == "" {
+		order.PaymentStatus = OrderPaymentStatusPending
 	}
 
 	if err := r.db.WithContext(ctx).Create(&order).Error; err != nil {
@@ -230,6 +272,9 @@ func (r *orderRepository) List(ctx context.Context, opts ListOrdersOptions) ([]O
 	if opts.PaymentMethod != "" {
 		base = base.Where("LOWER(payment_method) = ?", strings.ToLower(opts.PaymentMethod))
 	}
+	if opts.PaymentStatus != "" {
+		base = base.Where("LOWER(payment_status) = ?", strings.ToLower(opts.PaymentStatus))
+	}
 	if opts.Number != "" {
 		like := fmt.Sprintf("%%%s%%", strings.TrimSpace(opts.Number))
 		base = base.Where("number LIKE ?", like)
@@ -306,6 +351,30 @@ func (r *orderRepository) ListRefunds(ctx context.Context, orderIDs []uint64) (m
 	return grouped, nil
 }
 
+func (r *orderRepository) ListPayments(ctx context.Context, orderIDs []uint64) (map[uint64][]OrderPayment, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	if len(orderIDs) == 0 {
+		return map[uint64][]OrderPayment{}, nil
+	}
+
+	var payments []OrderPayment
+	if err := r.db.WithContext(ctx).
+		Where("order_id IN ?", orderIDs).
+		Order("id ASC").
+		Find(&payments).Error; err != nil {
+		return nil, err
+	}
+
+	grouped := make(map[uint64][]OrderPayment, len(orderIDs))
+	for _, payment := range payments {
+		grouped[payment.OrderID] = append(grouped[payment.OrderID], payment)
+	}
+
+	return grouped, nil
+}
+
 func (r *orderRepository) CreateRefund(ctx context.Context, refund OrderRefund) (OrderRefund, error) {
 	if err := ctx.Err(); err != nil {
 		return OrderRefund{}, err
@@ -326,6 +395,32 @@ func (r *orderRepository) CreateRefund(ctx context.Context, refund OrderRefund) 
 	return refund, nil
 }
 
+func (r *orderRepository) CreatePayment(ctx context.Context, payment OrderPayment) (OrderPayment, error) {
+	if err := ctx.Err(); err != nil {
+		return OrderPayment{}, err
+	}
+	if payment.OrderID == 0 {
+		return OrderPayment{}, ErrInvalidArgument
+	}
+
+	now := time.Now().UTC()
+	if payment.CreatedAt.IsZero() {
+		payment.CreatedAt = now
+	}
+	if payment.UpdatedAt.IsZero() {
+		payment.UpdatedAt = now
+	}
+	if payment.Status == "" {
+		payment.Status = OrderPaymentStatusPending
+	}
+
+	if err := r.db.WithContext(ctx).Create(&payment).Error; err != nil {
+		return OrderPayment{}, translateError(err)
+	}
+
+	return payment, nil
+}
+
 func normalizeListOrdersOptions(opts ListOrdersOptions) ListOrdersOptions {
 	if opts.Page <= 0 {
 		opts.Page = 1
@@ -335,6 +430,7 @@ func normalizeListOrdersOptions(opts ListOrdersOptions) ListOrdersOptions {
 	}
 	opts.Status = strings.TrimSpace(strings.ToLower(opts.Status))
 	opts.PaymentMethod = strings.TrimSpace(strings.ToLower(opts.PaymentMethod))
+	opts.PaymentStatus = strings.TrimSpace(strings.ToLower(opts.PaymentStatus))
 	opts.Sort = strings.TrimSpace(strings.ToLower(opts.Sort))
 	opts.Direction = strings.TrimSpace(strings.ToLower(opts.Direction))
 	return opts

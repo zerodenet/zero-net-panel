@@ -110,7 +110,7 @@ func TestAdminRefundOrder_FullRefundCancelsOrder(t *testing.T) {
 	}
 	resp, err := logic.Refund(&req)
 	require.NoError(t, err)
-	require.Equal(t, repository.OrderStatusCancelled, resp.Order.Status)
+	require.Equal(t, repository.OrderStatusRefunded, resp.Order.Status)
 	require.Equal(t, int64(1500), resp.Order.RefundedCents)
 	require.NotNil(t, resp.Order.RefundedAt)
 	require.Contains(t, resp.Order.Metadata, "last_refund_reason")
@@ -120,10 +120,9 @@ func TestAdminRefundOrder_FullRefundCancelsOrder(t *testing.T) {
 
 	var updated repository.Order
 	require.NoError(t, svcCtx.DB.First(&updated, orderModel.ID).Error)
-	require.Equal(t, repository.OrderStatusCancelled, updated.Status)
+	require.Equal(t, repository.OrderStatusRefunded, updated.Status)
 	require.Equal(t, int64(1500), updated.RefundedCents)
 	require.NotNil(t, updated.RefundedAt)
-	require.NotNil(t, updated.CancelledAt)
 
 	balance, err := svcCtx.Repositories.Balance.GetBalance(ctx, customer.ID)
 	require.NoError(t, err)

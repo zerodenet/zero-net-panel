@@ -40,15 +40,15 @@ func cloneVariables(vars map[string]repository.TemplateVariable) map[string]type
 	if vars == nil {
 		return nil
 	}
-	cloned := make(map[string]types.TemplateVariable, len(vars))
-	for k, v := range vars {
-		cloned[k] = types.TemplateVariable{
-			Type:        v.Type,
-			Required:    v.Required,
-			Description: v.Description,
-			Default:     v.Default,
-		}
-	}
+        cloned := make(map[string]types.TemplateVariable, len(vars))
+        for k, v := range vars {
+                cloned[k] = types.TemplateVariable{
+                        ValueType:   v.ValueType,
+                        Required:    v.Required,
+                        Description: v.Description,
+                        DefaultValue: v.DefaultValue,
+                }
+        }
 	return cloned
 }
 
@@ -56,14 +56,14 @@ func toRepositoryVariables(vars map[string]types.TemplateVariable) map[string]re
 	if vars == nil {
 		return nil
 	}
-	cloned := make(map[string]repository.TemplateVariable, len(vars))
-	for k, v := range vars {
-		cloned[k] = repository.TemplateVariable{
-			Type:        v.Type,
-			Required:    v.Required,
-			Description: v.Description,
-			Default:     v.Default,
-		}
-	}
+        cloned := make(map[string]repository.TemplateVariable, len(vars))
+        for k, v := range vars {
+                cloned[k] = repository.TemplateVariable{
+                        ValueType:   v.ValueType,
+                        Required:    v.Required,
+                        Description: v.Description,
+                        DefaultValue: v.DefaultValue,
+                }
+        }
 	return cloned
 }

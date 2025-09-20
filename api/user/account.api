@@ -3,7 +3,7 @@ syntax = "v1"
 import "shared/types.api"
 
 @server (
-    name: znp.api
+    name: znp
     prefix: /api/v1
     group: user/account
 )

@@ -53,7 +53,12 @@ func (l *GetLogic) Get(req *types.AdminGetOrderRequest) (*types.AdminOrderRespon
 		return nil, err
 	}
 
-	detail := orderutil.ToOrderDetail(order, items, refundsMap[order.ID])
+	paymentsMap, err := l.svcCtx.Repositories.Order.ListPayments(l.ctx, []uint64{order.ID})
+	if err != nil {
+		return nil, err
+	}
+
+	detail := orderutil.ToOrderDetail(order, items, refundsMap[order.ID], paymentsMap[order.ID])
 	resp := types.AdminOrderResponse{
 		Order: types.AdminOrderDetail{
 			OrderDetail: detail,

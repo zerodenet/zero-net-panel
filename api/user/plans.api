@@ -1,7 +1,7 @@
 syntax = "v1"
 
 @server (
-    name: znp.api
+    name: znp
     prefix: /api/v1
     group: user/plans
 )

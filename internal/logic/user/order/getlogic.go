@@ -47,7 +47,11 @@ func (l *GetLogic) Get(req *types.UserGetOrderRequest) (*types.UserOrderResponse
 	if err != nil {
 		return nil, err
 	}
-	detail := orderutil.ToOrderDetail(order, items, refundsMap[order.ID])
+	paymentsMap, err := l.svcCtx.Repositories.Order.ListPayments(l.ctx, []uint64{order.ID})
+	if err != nil {
+		return nil, err
+	}
+	detail := orderutil.ToOrderDetail(order, items, refundsMap[order.ID], paymentsMap[order.ID])
 	balance, err := l.svcCtx.Repositories.Balance.GetBalance(l.ctx, user.ID)
 	if err != nil {
 		return nil, err

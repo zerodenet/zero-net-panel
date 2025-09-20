@@ -111,3 +111,23 @@ func AdminRefundOrderHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 		httpx.OkJsonCtx(r.Context(), w, resp)
 	}
 }
+
+// AdminPaymentCallbackHandler processes external payment callbacks and updates order states.
+func AdminPaymentCallbackHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var req types.AdminPaymentCallbackRequest
+		if err := httpx.Parse(r, &req); err != nil {
+			handlercommon.RespondError(w, r, repository.ErrInvalidArgument)
+			return
+		}
+
+		logic := adminorders.NewPaymentCallbackLogic(r.Context(), svcCtx)
+		resp, err := logic.Process(&req)
+		if err != nil {
+			handlercommon.RespondError(w, r, err)
+			return
+		}
+
+		httpx.OkJsonCtx(r.Context(), w, resp)
+	}
+}
