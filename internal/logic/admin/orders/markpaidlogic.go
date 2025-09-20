@@ -2,6 +2,7 @@ package orders
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"time"
 
@@ -59,6 +60,13 @@ func (l *MarkPaidLogic) MarkPaid(req *types.AdminMarkOrderPaidRequest) (*types.A
 		if err != nil {
 			return err
 		}
+		var balanceRepo repository.BalanceRepository
+		if req.ChargeBalance {
+			balanceRepo, err = repository.NewBalanceRepository(tx)
+			if err != nil {
+				return err
+			}
+		}
 
 		paidAt := time.Now().UTC()
 		if req.PaidAt != nil && *req.PaidAt > 0 {
@@ -72,6 +80,10 @@ func (l *MarkPaidLogic) MarkPaid(req *types.AdminMarkOrderPaidRequest) (*types.A
 		if note != "" {
 			metadata["manual_payment_note"] = note
 		}
+		reference := strings.TrimSpace(req.Reference)
+		if reference != "" {
+			metadata["manual_payment_reference"] = reference
+		}
 
 		params := repository.UpdateOrderStatusParams{
 			Status:        repository.OrderStatusPaid,
@@ -79,6 +91,45 @@ func (l *MarkPaidLogic) MarkPaid(req *types.AdminMarkOrderPaidRequest) (*types.A
 			MetadataPatch: metadata,
 		}
 		method := strings.TrimSpace(req.PaymentMethod)
+		if req.ChargeBalance {
+			if order.TotalCents <= 0 {
+				return repository.ErrInvalidArgument
+			}
+
+			currency := order.Currency
+			if currency == "" {
+				currency = "CNY"
+			}
+
+			chargeMetadata := map[string]any{
+				"order_id":     order.ID,
+				"order_number": order.Number,
+				"operator":     actor.Email,
+			}
+			if reference != "" {
+				chargeMetadata["reference"] = reference
+			}
+			if note != "" {
+				chargeMetadata["note"] = note
+			}
+
+			chargeTx := repository.BalanceTransaction{
+				Type:        "purchase",
+				AmountCents: -order.TotalCents,
+				Currency:    currency,
+				Reference:   fmt.Sprintf("order:%s", order.Number),
+				Description: fmt.Sprintf("订单 %s 手动扣款", order.Number),
+				Metadata:    chargeMetadata,
+			}
+
+			createdTx, _, err := balanceRepo.ApplyTransaction(l.ctx, order.UserID, chargeTx)
+			if err != nil {
+				return err
+			}
+
+			metadata["manual_payment_tx_id"] = createdTx.ID
+			method = repository.PaymentMethodBalance
+		}
 		if method != "" {
 			params.PaymentMethod = &method
 		}

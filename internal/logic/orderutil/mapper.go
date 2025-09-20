@@ -60,13 +60,22 @@ func ToOrderDetail(order repository.Order, items []repository.OrderItem, refunds
 
 	if len(items) == 0 {
 		detail.Items = []types.OrderItem{}
-		return detail
+	} else {
+		detail.Items = make([]types.OrderItem, 0, len(items))
+		for _, item := range items {
+			detail.Items = append(detail.Items, ToOrderItem(item))
+		}
 	}
 
-	detail.Items = make([]types.OrderItem, 0, len(items))
-	for _, item := range items {
-		detail.Items = append(detail.Items, ToOrderItem(item))
+	if len(refunds) > 0 && len(refunds[0]) > 0 {
+		detail.Refunds = make([]types.OrderRefund, 0, len(refunds[0]))
+		for _, refund := range refunds[0] {
+			detail.Refunds = append(detail.Refunds, ToOrderRefund(refund))
+		}
+	} else {
+		detail.Refunds = []types.OrderRefund{}
 	}
+
 	return detail
 }
 

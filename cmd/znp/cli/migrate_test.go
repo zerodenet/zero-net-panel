@@ -14,6 +14,7 @@ import (
 	"gorm.io/gorm/logger"
 
 	"github.com/zero-net-panel/zero-net-panel/internal/bootstrap/migrations"
+	"github.com/zero-net-panel/zero-net-panel/internal/testutil"
 )
 
 func writeTestConfig(t *testing.T, dir, dsn string) string {
@@ -90,6 +91,8 @@ GRPCServer:
 func openSQLiteTestDB(t *testing.T, dsn string) *gorm.DB {
 	t.Helper()
 
+	testutil.RequireSQLite(t)
+
 	db, err := gorm.Open(sqlite.Open(dsn), &gorm.Config{
 		Logger:                 logger.Default.LogMode(logger.Silent),
 		SkipDefaultTransaction: true,
@@ -101,6 +104,8 @@ func openSQLiteTestDB(t *testing.T, dsn string) *gorm.DB {
 }
 
 func TestMigrateCommandApplyAndRollbackOutput(t *testing.T) {
+	testutil.RequireSQLite(t)
+
 	if len(migrationsList(t)) < 1 {
 		t.Skip("no migrations registered")
 	}
@@ -135,7 +140,9 @@ func TestMigrateCommandApplyAndRollbackOutput(t *testing.T) {
 	if err != nil {
 		t.Fatalf("sql db: %v", err)
 	}
-	defer sqlDB.Close()
+	defer func() {
+		_ = sqlDB.Close()
+	}()
 
 	var versions []uint64
 	if err := db.WithContext(context.Background()).Model(&migrations.SchemaMigration{}).Order("version asc").Pluck("version", &versions).Error; err != nil {
@@ -205,6 +212,8 @@ func TestMigrateCommandApplyAndRollbackOutput(t *testing.T) {
 }
 
 func TestMigrateCommandTargetTooNew(t *testing.T) {
+	testutil.RequireSQLite(t)
+
 	if len(migrationsList(t)) == 0 {
 		t.Skip("no migrations registered")
 	}
@@ -239,7 +248,9 @@ func migrationsList(t *testing.T) []uint64 {
 	if err != nil {
 		t.Fatalf("sql db: %v", err)
 	}
-	defer sqlDB.Close()
+	defer func() {
+		_ = sqlDB.Close()
+	}()
 
 	result, err := migrations.Apply(context.Background(), db, 0, false)
 	if err != nil {

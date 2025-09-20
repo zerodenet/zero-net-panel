@@ -114,5 +114,5 @@ func (l *CancelLogic) buildResponse(order repository.Order, items []repository.O
 			},
 		},
 	}
-  return &resp, nil
+	return &resp, nil
 }

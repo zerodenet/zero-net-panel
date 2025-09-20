@@ -60,7 +60,7 @@ func (l *CancelLogic) Cancel(req *types.UserCancelOrderRequest) (*types.UserOrde
 	}
 
 	if !strings.EqualFold(order.Status, repository.OrderStatusPending) {
-		if !(strings.EqualFold(order.Status, repository.OrderStatusPaid) && order.TotalCents == 0) {
+		if !strings.EqualFold(order.Status, repository.OrderStatusPaid) || order.TotalCents != 0 {
 			return nil, repository.ErrInvalidArgument
 		}
 	}

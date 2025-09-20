@@ -99,6 +99,7 @@ type OrderRepository interface {
 	List(ctx context.Context, opts ListOrdersOptions) ([]Order, int64, error)
 	ListItems(ctx context.Context, orderIDs []uint64) (map[uint64][]OrderItem, error)
 	ListRefunds(ctx context.Context, orderIDs []uint64) (map[uint64][]OrderRefund, error)
+	CreateRefund(ctx context.Context, refund OrderRefund) (OrderRefund, error)
 	UpdateStatus(ctx context.Context, id uint64, params UpdateOrderStatusParams) (Order, error)
 	AddRefund(ctx context.Context, id uint64, params AddRefundParams) (Order, error)
 }

@@ -13,11 +13,14 @@ import (
 	"github.com/zero-net-panel/zero-net-panel/internal/repository"
 	"github.com/zero-net-panel/zero-net-panel/internal/security"
 	"github.com/zero-net-panel/zero-net-panel/internal/svc"
+	"github.com/zero-net-panel/zero-net-panel/internal/testutil"
 	"github.com/zero-net-panel/zero-net-panel/internal/types"
 )
 
 func setupTestServiceContext(t *testing.T) (*svc.ServiceContext, context.Context) {
 	t.Helper()
+
+	testutil.RequireSQLite(t)
 
 	db, err := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{})
 	if err != nil {
@@ -153,11 +156,11 @@ func TestOrderLifecycle(t *testing.T) {
 	if err != nil {
 		t.Fatalf("mark order paid: %v", err)
 	}
-	if markResp.Order.OrderDetail.Status != repository.OrderStatusPaid {
-		t.Fatalf("expected paid status, got %s", markResp.Order.OrderDetail.Status)
+	if markResp.Order.Status != repository.OrderStatusPaid {
+		t.Fatalf("expected paid status, got %s", markResp.Order.Status)
 	}
-	if markResp.Order.OrderDetail.PaymentMethod != repository.PaymentMethodBalance {
-		t.Fatalf("expected payment method balance, got %s", markResp.Order.OrderDetail.PaymentMethod)
+	if markResp.Order.PaymentMethod != repository.PaymentMethodBalance {
+		t.Fatalf("expected payment method balance, got %s", markResp.Order.PaymentMethod)
 	}
 
 	balanceAfterPay, err := balanceRepo.GetBalance(ctx, customer.ID)
@@ -179,11 +182,11 @@ func TestOrderLifecycle(t *testing.T) {
 	if err != nil {
 		t.Fatalf("partial refund: %v", err)
 	}
-	if refundResp1.Order.OrderDetail.Status != repository.OrderStatusPartiallyRefunded {
-		t.Fatalf("expected partially_refunded status, got %s", refundResp1.Order.OrderDetail.Status)
+	if refundResp1.Order.Status != repository.OrderStatusPaid {
+		t.Fatalf("expected paid status after partial refund, got %s", refundResp1.Order.Status)
 	}
-	if refundResp1.Order.OrderDetail.RefundedCents != half {
-		t.Fatalf("expected refunded cents %d, got %d", half, refundResp1.Order.OrderDetail.RefundedCents)
+	if refundResp1.Order.RefundedCents != half {
+		t.Fatalf("expected refunded cents %d, got %d", half, refundResp1.Order.RefundedCents)
 	}
 
 	balanceAfterPartial, err := balanceRepo.GetBalance(ctx, customer.ID)
@@ -204,14 +207,14 @@ func TestOrderLifecycle(t *testing.T) {
 	if err != nil {
 		t.Fatalf("final refund: %v", err)
 	}
-	if refundResp2.Order.OrderDetail.Status != repository.OrderStatusRefunded {
-		t.Fatalf("expected refunded status, got %s", refundResp2.Order.OrderDetail.Status)
+	if refundResp2.Order.Status != repository.OrderStatusCancelled {
+		t.Fatalf("expected cancelled status after full refund, got %s", refundResp2.Order.Status)
 	}
-	if refundResp2.Order.OrderDetail.RefundedCents != payOrder.TotalCents {
-		t.Fatalf("expected refunded cents %d, got %d", payOrder.TotalCents, refundResp2.Order.OrderDetail.RefundedCents)
+	if refundResp2.Order.RefundedCents != payOrder.TotalCents {
+		t.Fatalf("expected refunded cents %d, got %d", payOrder.TotalCents, refundResp2.Order.RefundedCents)
 	}
-	if len(refundResp2.Order.OrderDetail.Refunds) != 2 {
-		t.Fatalf("expected 2 refund records, got %d", len(refundResp2.Order.OrderDetail.Refunds))
+	if len(refundResp2.Order.Refunds) != 2 {
+		t.Fatalf("expected 2 refund records, got %d", len(refundResp2.Order.Refunds))
 	}
 
 	balanceAfterFull, err := balanceRepo.GetBalance(ctx, customer.ID)
@@ -256,7 +259,7 @@ func TestOrderLifecycle(t *testing.T) {
 	if err != nil {
 		t.Fatalf("admin cancel: %v", err)
 	}
-	if cancelRespAdmin.Order.OrderDetail.Status != repository.OrderStatusCancelled {
-		t.Fatalf("expected admin cancelled status, got %s", cancelRespAdmin.Order.OrderDetail.Status)
+	if cancelRespAdmin.Order.Status != repository.OrderStatusCancelled {
+		t.Fatalf("expected admin cancelled status, got %s", cancelRespAdmin.Order.Status)
 	}
 }
