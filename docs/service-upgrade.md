@@ -1,6 +1,6 @@
 # 服务升级与迁移指南
 
-本指南描述 Zero Net Panel 在迭代过程中的升级策略、注意事项与数据库迁移流程，帮助运营人员安全上线新版本。
+本指南描述 Zero Net Panel 在迭代过程中的升级策略、注意事项与数据库迁移流程，并补充升级前后必须完成的端到端校验场景，帮助运营人员安全上线新版本。
 
 ## 发行说明
 
@@ -22,6 +22,52 @@
 3. **演示数据**：`internal/bootstrap/seed` 提供基础演示数据，可根据 `ZNP_SEED` 环境变量或 CLI `--seed-demo` 参数控制是否执行。
 4. **数据备份**：生产环境升级前务必对核心表（`users`、`subscriptions`、`plans`、`orders`、`announcements` 等）进行备份，推荐使用数据库快照或备份脚本。
 
+## 升级前后验证清单
+
+### 签名校验回归
+
+1. 在预发布或灰度环境中使用管理员账户调用 `GET /api/v1/{admin}/security-settings`，记录当前配置。
+2. 若版本中包含安全配置变更，执行 `PATCH /api/v1/{admin}/security-settings` 更新密钥，并确认响应中的 `updatedAt` 为最新时间。
+3. 使用第三方客户端按 `timestamp + "\n" + nonce + "\n" + body` 规则生成签名，调用一个受保护接口（例如 `GET /api/v1/user/account/balance`），校验返回结果。
+4. 针对失败场景，确认系统返回的错误码符合预期并按下表排障。
+
+| 接口 | 错误码 | 说明 | 排障建议 |
+| ---- | ------ | ---- | -------- |
+| `PATCH /api/v1/{admin}/security-settings` | `400100` | 参数缺失或 TTL 小于 60 秒 | 校验部署脚本是否正确下发 `nonceTTLSeconds`、`apiKey` 与 `apiSecret`。 |
+| `GET /api/v1/{admin}/security-settings` | `500120` | 配置读取失败 | 确认数据库连接可用，必要时查看 `security_settings` 表结构。 |
+| 受保护接口（任意） | `401001` | 签名不一致 | 检查客户端 HMAC 密钥、换行符与请求体是否被额外转义。 |
+| 受保护接口（任意） | `403001` | 时间戳超出窗口 | 同步客户端 NTP，或在测试阶段暂时增大 `nonceTTLSeconds`。 |
+| 受保护接口（任意） | `403002` | Nonce 重复使用 | 确认重试策略会刷新随机数，避免使用缓存的请求副本。 |
+
+### 节点同步回归
+
+1. 升级前记录关键节点列表与上次同步时间（`GET /api/v1/{admin}/nodes`）。
+2. 升级后随机抽查 2~3 个节点，调用 `POST /api/v1/{admin}/nodes/{id}/kernels/sync` 并观察响应。
+3. 检查服务日志或 Prometheus 指标 `znp_node_sync_operations_total`，确保无大规模失败。
+4. 若节点同步失败，参考下表排障：
+
+| 接口 | 错误码 | 说明 | 排障建议 |
+| ---- | ------ | ---- | -------- |
+| `POST /api/v1/{admin}/nodes/{id}/kernels/sync` | `404004` | 节点不存在 | 环境差异导致 ID 变化，重新确认节点清单或重新导入数据。 |
+| 同上 | `409101` | 同步任务正在进行 | 等待当前任务完成，必要时调整同步间隔或并发度。 |
+| 同上 | `500101` | 内核握手失败 | 验证 `Kernel` 配置、内核 token 与网络连通性；可使用 `curl`/`grpcurl` 手动探测。 |
+| `GET /api/v1/{admin}/nodes` | `400300` | 查询条件非法 | 升级脚本可能注入了旧版参数，移除无效过滤项后重试。 |
+
+### 套餐发布回归
+
+1. 升级前在 staging 环境导出关键套餐与模板 ID。
+2. 升级后调用 `POST /api/v1/{admin}/subscription-templates/{id}/publish` 发布新模板。
+3. 通过 `POST /api/v1/{admin}/plans` 或 `PATCH /api/v1/{admin}/plans/{id}` 创建/更新套餐。
+4. 使用测试账号访问 `GET /api/v1/user/plans`，确认新套餐可见，并执行一次 `POST /api/v1/user/orders` 验证扣费链路。
+
+| 接口 | 错误码 | 说明 | 排障建议 |
+| ---- | ------ | ---- | -------- |
+| `POST /api/v1/{admin}/subscription-templates/{id}/publish` | `409001` | 模板存在未发布草稿 | 先保存草稿或清理旧版本，再次发布。 |
+| `POST /api/v1/{admin}/plans` | `400201` | 套餐字段缺失或价格非法 | 检查部署脚本中的 JSON 字段，确保价格、时长、模板 ID 等必填项已设置。 |
+| `PATCH /api/v1/{admin}/plans/{id}` | `409201` | 乐观锁冲突 | 前端或脚本使用了过期的版本号，重新获取详情后重试。 |
+| `GET /api/v1/user/plans` | `503001` | 套餐缓存构建失败 | 查看缓存服务状态，必要时重启服务或手动清理缓存。 |
+| `POST /api/v1/user/orders` | `402001` | 余额不足 | 使用测试账户充值，或暂时设置套餐为零元套餐验证流程。 |
+
 ## 回滚策略
 
 - **配置回滚**：保留上一版本的配置文件与 `security_settings`、`plans` 等核心表的快照。
@@ -34,5 +80,6 @@
 ## 常见问题
 
 - **迁移失败**：确认数据库用户具备 DDL 权限，查看日志了解具体 SQL 错误。
-- **第三方加密开关**：`security_settings` 默认关闭，如开启需同步客户端密钥，并验证签名是否正确。
+- **第三方加密开关**：`security_settings` 默认关闭，开启需同步客户端密钥，并验证签名是否正确。若仍失败，请对照上文错误码表排查。
 - **缓存一致性**：变更节点、套餐等高频数据后建议清理 Redis/本地缓存，保证新配置即时生效。
+- **指标异常**：Prometheus 抓取不到指标时，确认 `Metrics.ListenOn` 与防火墙规则是否正确，并检查 `znp_node_sync_operations_total`、`znp_order_create_requests_total` 等关键指标是否持续增长。

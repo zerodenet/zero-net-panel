@@ -12,30 +12,34 @@ Zero Network Panel 旨在以 xboard 的功能体系为基线，提供面向节�
 - **仓储抽象层**：全部领域模型已迁移至 GORM，兼容 MySQL/PostgreSQL/SQLite，配合版本化迁移 (`schema_migrations`) 与演示数据脚本快速初始化环境。
 
 ## 可用 API 示例
+端到端流程、错误码与排障建议请参考 [docs/api-overview.md](docs/api-overview.md) 与 [docs/operations.md](docs/operations.md)。下表概括常用接口：
+
+**系统与安全**
+
 - `GET /api/v1/ping`：健康检查。
 - `GET /api/v1/{AdminPrefix}/dashboard`：获取管理后台模块概览（默认 `AdminPrefix=admin`）。
+- `GET /api/v1/{AdminPrefix}/security-settings` / `PATCH /api/v1/{AdminPrefix}/security-settings`：查看及更新第三方 API 签名、加密配置。
+
+**节点与模板管理**
+
 - `GET /api/v1/{AdminPrefix}/nodes`：按分页/过滤获取节点列表。
 - `POST /api/v1/{AdminPrefix}/nodes/{id}/kernels/sync`：触发节点与内核的即时同步。
 - `GET /api/v1/{AdminPrefix}/subscription-templates`：查看模板列表及变量定义。
 - `POST /api/v1/{AdminPrefix}/subscription-templates/{id}/publish`：发布模板并记录版本历史。
-- `GET /api/v1/user/subscriptions`：查询当前用户订阅列表。
-- `GET /api/v1/user/subscriptions/{id}/preview`：渲染订阅内容并返回预览。
+
+**套餐与公告**
+
 - `GET /api/v1/{AdminPrefix}/plans`：管理套餐列表，支持分页检索与多条件过滤。
 - `POST /api/v1/{AdminPrefix}/announcements`：创建并发布面向用户的公告，支持置顶和可见时间窗。
 - `GET /api/v1/user/plans`：终端可用套餐列表，返回价格、流量与特性描述。
 - `GET /api/v1/user/announcements`：按受众过滤当前有效公告。
+
+**订阅与订单**
+
+- `GET /api/v1/user/subscriptions` / `GET /api/v1/user/subscriptions/{id}/preview`：查询订阅与预览内容。
 - `GET /api/v1/user/account/balance`：查询用户余额与最近流水，默认受第三方安全中间件保护。
-- `POST /api/v1/user/orders`：创建套餐订单并自动从余额扣费。
-- `GET /api/v1/user/orders`：分页查看订单记录及订单条目。
-- `GET /api/v1/user/orders/{id}`：获取单个订单详情及余额快照。
-- `POST /api/v1/user/orders/{id}/cancel`：取消待支付或零元订单。
-- `GET /api/v1/{AdminPrefix}/security-settings`：查看第三方 API 安全开关与凭据配置。
-- `PATCH /api/v1/{AdminPrefix}/security-settings`：更新开关、密钥与时间窗口信息。
-- `GET /api/v1/{AdminPrefix}/orders`：按状态、用户、支付方式筛选订单。
-- `GET /api/v1/{AdminPrefix}/orders/{id}`：查看订单详情、关联用户及条目。
-- `POST /api/v1/{AdminPrefix}/orders/{id}/pay`：手动标记订单已支付，可覆盖支付方式与时间。
-- `POST /api/v1/{AdminPrefix}/orders/{id}/cancel`：管理员取消订单，支持记录原因。
-- `POST /api/v1/{AdminPrefix}/orders/{id}/refund`：对余额支付订单执行退款并写入流水。
+- `POST /api/v1/user/orders`、`GET /api/v1/user/orders`、`GET /api/v1/user/orders/{id}`、`POST /api/v1/user/orders/{id}/cancel`：套餐下单、查询与取消流程。
+- `GET /api/v1/{AdminPrefix}/orders`、`GET /api/v1/{AdminPrefix}/orders/{id}`、`POST /api/v1/{AdminPrefix}/orders/{id}/pay`/`cancel`/`refund`：管理端订单处理能力。
 
 ## 项目结构
 ```
@@ -64,18 +68,23 @@ API 入口文件位于 `api/znp.api`，该文件通过 `import` 聚合 `api/shar
 脚本会先运行 `goctl api format -dir api` 对全部 `.api` 文件进行格式化，然后使用 `goctl api go` 生成最新的 handler/logic/types 代码。生成后请根据实际业务手动调整逻辑层实现，并执行 `go fmt` 与测试校验。
 
 ## 快速启动
-1. 选择配置文件（示例提供 `etc/znp-sqlite.yaml` 便于本地使用 SQLite）。
-2. 初始化数据库（包含 schema 迁移以及可选的演示数据）：
+更多详细步骤、依赖准备及请求示例可参考 [docs/getting-started.md](docs/getting-started.md)。
+
+1. **选择部署场景并复制配置文件**：
+   - **开发环境**：使用 `etc/znp-sqlite.yaml`，默认启用内存缓存并可结合 `--seed-demo` 注入演示数据。
+   - **测试/集成环境**：基于 `etc/znp-api.yaml` 修改，将 `Database.DSN` 指向独立的 MySQL 数据库，建议启用 `Metrics.ListenOn` 便于观测。
+   - **生产环境**：在 `etc/znp-api.yaml` 基础上衍生专用配置，调整 `Auth` 密钥、缓存 Provider（如 Redis）与 `Kernel` 地址，并结合 systemd/容器运行。
+2. **初始化数据库**：执行迁移并可选注入演示数据。
    ```bash
    go run ./cmd/znp migrate --config etc/znp-sqlite.yaml --apply --seed-demo
    ```
-   支持通过 `--to <version>` 仅执行至指定迁移版本，默认为最新。
-3. 启动一体化服务：
+   若需要对齐生产数据库，可通过 `--to <version>` 指定迁移目标，或在测试环境中添加 `--rollback` 演练回滚流程。
+3. **启动服务**：
    ```bash
-   go run ./cmd/znp serve --config etc/znp-sqlite.yaml
+   go run ./cmd/znp serve --config etc/znp-sqlite.yaml --migrate-to latest
    ```
-   若仅需 HTTP，可追加 `--disable-grpc`；亦可继续使用兼容入口：`go run ./cmd/api -f etc/znp-sqlite.yaml`
-4. 访问健康检查：`GET http://localhost:8888/api/v1/ping`
+   若仅需 HTTP，可追加 `--disable-grpc`；容器或守护进程场景可结合 `--graceful-timeout`、`--log-level` 等参数。
+4. **健康检查与验证**：访问 `GET http://localhost:8888/api/v1/ping` 或 `go run ./cmd/znp tools check-config --config <file>`，确认服务就绪。
 
 ## 监控与指标
 
