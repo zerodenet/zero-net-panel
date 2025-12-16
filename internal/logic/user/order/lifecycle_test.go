@@ -182,8 +182,8 @@ func TestOrderLifecycle(t *testing.T) {
 	if err != nil {
 		t.Fatalf("partial refund: %v", err)
 	}
-	if refundResp1.Order.Status != repository.OrderStatusPaid {
-		t.Fatalf("expected paid status after partial refund, got %s", refundResp1.Order.Status)
+	if refundResp1.Order.Status != repository.OrderStatusPartiallyRefunded {
+		t.Fatalf("expected partially_refunded status after partial refund, got %s", refundResp1.Order.Status)
 	}
 	if refundResp1.Order.RefundedCents != half {
 		t.Fatalf("expected refunded cents %d, got %d", half, refundResp1.Order.RefundedCents)
@@ -207,8 +207,8 @@ func TestOrderLifecycle(t *testing.T) {
 	if err != nil {
 		t.Fatalf("final refund: %v", err)
 	}
-	if refundResp2.Order.Status != repository.OrderStatusCancelled {
-		t.Fatalf("expected cancelled status after full refund, got %s", refundResp2.Order.Status)
+	if refundResp2.Order.Status != repository.OrderStatusRefunded {
+		t.Fatalf("expected refunded status after full refund, got %s", refundResp2.Order.Status)
 	}
 	if refundResp2.Order.RefundedCents != payOrder.TotalCents {
 		t.Fatalf("expected refunded cents %d, got %d", payOrder.TotalCents, refundResp2.Order.RefundedCents)

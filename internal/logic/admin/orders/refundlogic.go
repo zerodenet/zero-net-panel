@@ -67,8 +67,7 @@ func (l *RefundLogic) Refund(req *types.AdminRefundOrderRequest) (*types.AdminOr
 	}
 
 	var (
-		updated       repository.Order
-		refundRecords []repository.OrderRefund
+		updated repository.Order
 	)
 	err = l.svcCtx.DB.WithContext(l.ctx).Transaction(func(tx *gorm.DB) error {
 		orderRepo, err := repository.NewOrderRepository(tx)
@@ -151,18 +150,6 @@ func (l *RefundLogic) Refund(req *types.AdminRefundOrderRequest) (*types.AdminOr
 
 		updatedOrder, err := orderRepo.AddRefund(l.ctx, req.OrderID, refundParams)
 		if err != nil {
-			return err
-		}
-
-		refundRecord := repository.OrderRefund{
-			OrderID:     order.ID,
-			AmountCents: req.AmountCents,
-			Reason:      reason,
-			Reference:   fmt.Sprintf("balance_tx:%d", createdTx.ID),
-			Metadata:    metadata,
-			CreatedAt:   createdTx.CreatedAt,
-		}
-		if _, err := orderRepo.CreateRefund(l.ctx, refundRecord); err != nil {
 			return err
 		}
 
