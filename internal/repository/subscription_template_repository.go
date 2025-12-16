@@ -13,10 +13,10 @@ import (
 
 // TemplateVariable 描述模板可用变量。
 type TemplateVariable struct {
-        ValueType   string `json:"value_type"`
-        Required    bool   `json:"required"`
-        Description string `json:"description"`
-        DefaultValue any   `json:"default_value,omitempty"`
+	ValueType    string `json:"value_type"`
+	Required     bool   `json:"required"`
+	Description  string `json:"description"`
+	DefaultValue any    `json:"default_value,omitempty"`
 }
 
 // SubscriptionTemplate 描述订阅模板的草稿状态。
