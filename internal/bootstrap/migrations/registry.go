@@ -139,60 +139,60 @@ var migrationRegistry = []Migration{
 			return nil
 		},
 	},
-        {
-                Version: 2024071501,
-                Name:    "order-refund-tracking",
-                Up: func(ctx context.Context, db *gorm.DB) error {
-                        return db.WithContext(ctx).AutoMigrate(
-                                &repository.Order{},
-                        )
-                },
-                Down: func(ctx context.Context, db *gorm.DB) error {
-                        migrator := db.WithContext(ctx).Migrator()
-                        columns := []string{"refunded_cents", "refunded_at"}
-                        for _, column := range columns {
-                                if migrator.HasColumn(&repository.Order{}, column) {
-                                        if err := migrator.DropColumn(&repository.Order{}, column); err != nil {
-                                                return err
-                                        }
-                                }
-                        }
-                        return nil
-                },
-        },
-        {
-                Version: 2024120101,
-                Name:    "order-payment-tracking",
-                Up: func(ctx context.Context, db *gorm.DB) error {
-                        return db.WithContext(ctx).AutoMigrate(
-                                &repository.Order{},
-                                &repository.OrderPayment{},
-                        )
-                },
-                Down: func(ctx context.Context, db *gorm.DB) error {
-                        migrator := db.WithContext(ctx).Migrator()
-                        if migrator.HasTable(&repository.OrderPayment{}) {
-                                if err := migrator.DropTable(&repository.OrderPayment{}); err != nil {
-                                        return err
-                                }
-                        }
-                        columns := []string{
-                                "payment_status",
-                                "payment_intent_id",
-                                "payment_reference",
-                                "payment_failure_code",
-                                "payment_failure_reason",
-                        }
-                        for _, column := range columns {
-                                if migrator.HasColumn(&repository.Order{}, column) {
-                                        if err := migrator.DropColumn(&repository.Order{}, column); err != nil {
-                                                return err
-                                        }
-                                }
-                        }
-                        return nil
-                },
-        },
+	{
+		Version: 2024071501,
+		Name:    "order-refund-tracking",
+		Up: func(ctx context.Context, db *gorm.DB) error {
+			return db.WithContext(ctx).AutoMigrate(
+				&repository.Order{},
+			)
+		},
+		Down: func(ctx context.Context, db *gorm.DB) error {
+			migrator := db.WithContext(ctx).Migrator()
+			columns := []string{"refunded_cents", "refunded_at"}
+			for _, column := range columns {
+				if migrator.HasColumn(&repository.Order{}, column) {
+					if err := migrator.DropColumn(&repository.Order{}, column); err != nil {
+						return err
+					}
+				}
+			}
+			return nil
+		},
+	},
+	{
+		Version: 2024120101,
+		Name:    "order-payment-tracking",
+		Up: func(ctx context.Context, db *gorm.DB) error {
+			return db.WithContext(ctx).AutoMigrate(
+				&repository.Order{},
+				&repository.OrderPayment{},
+			)
+		},
+		Down: func(ctx context.Context, db *gorm.DB) error {
+			migrator := db.WithContext(ctx).Migrator()
+			if migrator.HasTable(&repository.OrderPayment{}) {
+				if err := migrator.DropTable(&repository.OrderPayment{}); err != nil {
+					return err
+				}
+			}
+			columns := []string{
+				"payment_status",
+				"payment_intent_id",
+				"payment_reference",
+				"payment_failure_code",
+				"payment_failure_reason",
+			}
+			for _, column := range columns {
+				if migrator.HasColumn(&repository.Order{}, column) {
+					if err := migrator.DropColumn(&repository.Order{}, column); err != nil {
+						return err
+					}
+				}
+			}
+			return nil
+		},
+	},
 }
 
 func init() {

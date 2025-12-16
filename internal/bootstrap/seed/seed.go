@@ -261,9 +261,9 @@ func seedTemplates(tx *gorm.DB) error {
 		ClientType:  "clash",
 		Format:      "go_template",
 		Content:     `# Clash Premium subscription\nproxies:\n  - name: {{ .subscription.name }}\n    type: trojan\n    server: {{ index .nodes 0 "hostname" }}\n    port: {{ index .nodes 0 "port" }}\n    password: {{ .subscription.token }}\n`,
-                Variables: map[string]repository.TemplateVariable{
-                        "subscription.name":  {ValueType: "string", Description: "订阅展示名称"},
-                        "subscription.token": {ValueType: "string", Description: "鉴权密钥", Required: true},
+		Variables: map[string]repository.TemplateVariable{
+			"subscription.name":  {ValueType: "string", Description: "订阅展示名称"},
+			"subscription.token": {ValueType: "string", Description: "鉴权密钥", Required: true},
 		},
 		IsDefault:       true,
 		Version:         1,
@@ -297,9 +297,9 @@ func seedTemplates(tx *gorm.DB) error {
 		ClientType:  "sing-box",
 		Format:      "go_template",
 		Content:     `{{ toJSON .subscription }}`,
-                Variables: map[string]repository.TemplateVariable{
-                        "subscription": {ValueType: "object", Description: "订阅完整上下文", Required: true},
-                },
+		Variables: map[string]repository.TemplateVariable{
+			"subscription": {ValueType: "object", Description: "订阅完整上下文", Required: true},
+		},
 		IsDefault:       true,
 		Version:         1,
 		CreatedAt:       now.Add(-24 * time.Hour),

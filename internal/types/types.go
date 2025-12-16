@@ -156,10 +156,10 @@ type AdminListSubscriptionTemplatesRequest struct {
 
 // TemplateVariable 模板变量描述。
 type TemplateVariable struct {
-        ValueType   string `json:"value_type"`
-        Required    bool   `json:"required"`
-        Description string `json:"description"`
-        DefaultValue any   `json:"default_value"`
+	ValueType    string `json:"value_type"`
+	Required     bool   `json:"required"`
+	Description  string `json:"description"`
+	DefaultValue any    `json:"default_value"`
 }
 
 // SubscriptionTemplateSummary 模板摘要信息。
@@ -504,16 +504,16 @@ type UserAnnouncementListResponse struct {
 
 // UserBalanceRequest 用户余额请求。
 type UserBalanceRequest struct {
-        Page    int    `form:"page"`
-        PerPage int    `form:"per_page"`
-        EntryType string `form:"entry_type"`
+	Page      int    `form:"page"`
+	PerPage   int    `form:"per_page"`
+	EntryType string `form:"entry_type"`
 }
 
 // BalanceTransactionSummary 用户余额流水。
 type BalanceTransactionSummary struct {
-        ID                uint64         `json:"id"`
-        EntryType         string         `json:"entry_type"`
-        AmountCents       int64          `json:"amount_cents"`
+	ID                uint64         `json:"id"`
+	EntryType         string         `json:"entry_type"`
+	AmountCents       int64          `json:"amount_cents"`
 	Currency          string         `json:"currency"`
 	BalanceAfterCents int64          `json:"balance_after_cents"`
 	Reference         string         `json:"reference"`

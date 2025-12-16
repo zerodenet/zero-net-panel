@@ -23,12 +23,12 @@ func toBalanceResponse(balance repository.UserBalance, transactions []repository
 }
 
 func toBalanceTransactionSummary(tx repository.BalanceTransaction) types.BalanceTransactionSummary {
-        return types.BalanceTransactionSummary{
-                ID:                tx.ID,
-                EntryType:         tx.Type,
-                AmountCents:       tx.AmountCents,
-                Currency:          tx.Currency,
-                BalanceAfterCents: tx.BalanceAfterCents,
+	return types.BalanceTransactionSummary{
+		ID:                tx.ID,
+		EntryType:         tx.Type,
+		AmountCents:       tx.AmountCents,
+		Currency:          tx.Currency,
+		BalanceAfterCents: tx.BalanceAfterCents,
 		Reference:         tx.Reference,
 		Description:       tx.Description,
 		Metadata:          tx.Metadata,
