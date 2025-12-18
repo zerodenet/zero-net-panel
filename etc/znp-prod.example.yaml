@@ -1,0 +1,71 @@
+# 生产示例配置：复制后替换尖括号内容，不要提交秘钥。
+Name: znp.prod
+Host: 0.0.0.0
+Port: 8888
+Timeout: 60000
+
+Project:
+  Name: Zero Network Panel
+  Description: Production deployment
+  Version: 1.0.0
+
+Database:
+  Driver: mysql           # 可选 mysql/postgres/sqlite
+  DSN: "<user>:<pass>@tcp(db:3306)/znp?parseTime=true&loc=Local"  # 必填：生产 DSN
+  MaxOpenConns: 50
+  MaxIdleConns: 25
+  ConnMaxLifetime: 600s
+  LogLevel: warn          # trace/debug/info/warn/error/silent
+
+Cache:
+  Provider: memory        # 多副本时改为 redis 并填写 Host/Password
+  Memory:
+    Size: 2048
+  Redis:
+    Host: ""
+    Type: node
+    Password: ""
+    TLS: false
+    NonBlock: false
+    PingTimeout: 0s
+
+Kernel:
+  DefaultProtocol: http
+  HTTP:
+    BaseURL: "https://kernel.example.com"  # 必填：内核 HTTP 入口
+    Token: "<token>"                       # 必填：内核访问令牌
+    Timeout: 5s
+  GRPC:
+    Endpoint: ""                           # 如需 gRPC 同步则填写
+    TLSCert: ""
+    Timeout: 5s
+
+Auth:
+  AccessSecret: "<access-secret>"          # 必填：强随机字符串
+  AccessExpire: 24h
+  RefreshSecret: "<refresh-secret>"        # 必填：强随机字符串
+  RefreshExpire: 720h
+
+Metrics:
+  Enable: true
+  Path: /metrics
+  ListenOn: ""                             # 为空则复用主 HTTP；如需分离可设 0.0.0.0:9100
+
+Admin:
+  RoutePrefix: admin
+  Access:
+    AllowCIDRs: []                 # 可选：["10.0.0.0/8","192.168.0.0/16"]
+    RateLimitPerMinute: 120        # 可选：每 IP 每分钟限速，0 表示关闭
+    Burst: 20                      # 可选：瞬时突发
+
+Webhook:
+  AllowCIDRs: []                   # 可选：允许支付回调来源 IP
+  SharedToken: ""                  # 可选：通用回调密钥（X-ZNP-Webhook-Token）
+  Stripe:
+    SigningSecret: ""              # 可选：Stripe webhook signing secret
+    ToleranceSeconds: 300
+
+GRPCServer:
+  Enable: false                            # 如需 gRPC 服务改为 true 并设置监听
+  ListenOn: 0.0.0.0:8890
+  Reflection: true

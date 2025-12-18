@@ -193,6 +193,29 @@ var migrationRegistry = []Migration{
 			return nil
 		},
 	},
+	{
+		Version: 2025022001,
+		Name:    "order-idempotency-key",
+		Up: func(ctx context.Context, db *gorm.DB) error {
+			return db.WithContext(ctx).AutoMigrate(
+				&repository.Order{},
+			)
+		},
+		Down: func(ctx context.Context, db *gorm.DB) error {
+			migrator := db.WithContext(ctx).Migrator()
+			if migrator.HasIndex(&repository.Order{}, "idx_order_user_idempotency") {
+				if err := migrator.DropIndex(&repository.Order{}, "idx_order_user_idempotency"); err != nil {
+					return err
+				}
+			}
+			if migrator.HasColumn(&repository.Order{}, "idempotency_key") {
+				if err := migrator.DropColumn(&repository.Order{}, "idempotency_key"); err != nil {
+					return err
+				}
+			}
+			return nil
+		},
+	},
 }
 
 func init() {
