@@ -40,6 +40,7 @@
 
 - `api/znp.api` 作为入口文件，按 `shared/`、`auth/`、`admin/`、`user/` 等子目录拆分接口与复用类型，可根据领域独立维护。
 - 运行 `./scripts/gen-api.sh` 即可格式化全部 `.api` 文件并调用 `goctl api go` 重新生成 `internal/handler`、`internal/logic`、`internal/types` 模板代码。脚本允许通过参数覆盖入口文件或输出目录，方便在自定义路径上预览生成结果。
+- 运行 `./scripts/gen-api-docs.sh` 可基于 `.api` 文件生成 Markdown 文档，默认输出到 `docs/api-generated/`。
 - 生成后的 handler/logic 需要根据实际业务补充实现，提交前请执行 `gofmt -w .` 与 `go test ./...`。
 
 ## 问题反馈
