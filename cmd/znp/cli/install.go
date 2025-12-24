@@ -58,10 +58,12 @@ This command will guide you through:
 }
 
 type InstallWizard struct {
-	cmd        *cobra.Command
-	reader     *bufio.Reader
-	outputFile string
-	cfg        config.Config
+	cmd           *cobra.Command
+	reader        *bufio.Reader
+	outputFile    string
+	cfg           config.Config
+	adminEmail    string
+	adminPassword string
 }
 
 func (w *InstallWizard) Run() error {
@@ -220,9 +222,6 @@ func (w *InstallWizard) configureAuthStep() error {
 	return nil
 }
 
-var adminEmail string
-var adminPassword string
-
 func (w *InstallWizard) configureAdminStep() error {
 	w.cmd.Println("═══ Step 4: Admin Account Configuration ═══")
 
@@ -232,7 +231,7 @@ func (w *InstallWizard) configureAdminStep() error {
 	for {
 		email := w.prompt("Admin email", "admin@example.com")
 		if emailRegex.MatchString(email) {
-			adminEmail = email
+			w.adminEmail = email
 			break
 		}
 		w.cmd.Println("✗ Invalid email format. Please try again.")
@@ -249,7 +248,7 @@ func (w *InstallWizard) configureAdminStep() error {
 			w.cmd.Println("✗ Passwords do not match. Please try again.")
 			continue
 		}
-		adminPassword = password
+		w.adminPassword = password
 		break
 	}
 
@@ -362,7 +361,7 @@ func (w *InstallWizard) createAdminUserStep() error {
 
 	// Check if admin user already exists
 	var existingUser repository.User
-	err = db.Where("email = ?", adminEmail).First(&existingUser).Error
+	err = db.Where("email = ?", w.adminEmail).First(&existingUser).Error
 	if err == nil {
 		w.cmd.Println("✓ Admin user already exists, skipping creation")
 		return nil
@@ -371,14 +370,14 @@ func (w *InstallWizard) createAdminUserStep() error {
 	}
 
 	// Hash the password
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(adminPassword), bcrypt.DefaultCost)
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(w.adminPassword), bcrypt.DefaultCost)
 	if err != nil {
 		return fmt.Errorf("failed to hash password: %w", err)
 	}
 
 	// Create admin user
 	adminUser := repository.User{
-		Email:        adminEmail,
+		Email:        w.adminEmail,
 		DisplayName:  "System Administrator",
 		PasswordHash: string(hashedPassword),
 		Roles:        []string{"admin", "user"},
@@ -404,7 +403,7 @@ func (w *InstallWizard) printSuccess() {
 	w.cmd.Printf("  1. Review the configuration file: %s\n", w.outputFile)
 	w.cmd.Printf("  2. Start the service: go run ./cmd/znp serve --config %s\n", w.outputFile)
 	w.cmd.Printf("  3. Access the API at: http://%s:%d/api/v1/ping\n", w.cfg.Host, w.cfg.Port)
-	w.cmd.Printf("  4. Login with: %s\n", adminEmail)
+	w.cmd.Printf("  4. Login with: %s\n", w.adminEmail)
 	w.cmd.Println("\nThank you for using Zero Network Panel!")
 	w.cmd.Println()
 }
@@ -431,7 +430,10 @@ func (w *InstallWizard) prompt(message, defaultValue string) string {
 }
 
 func (w *InstallWizard) promptPassword(message string) string {
-	w.cmd.Printf("%s: ", message)
+	// NOTE: For production use, consider using golang.org/x/term.ReadPassword
+	// to hide password input. Current implementation shows passwords for
+	// compatibility with automated testing and non-TTY environments.
+	w.cmd.Printf("%s (will be visible): ", message)
 
 	// Read password from stdin
 	input, err := w.reader.ReadString('\n')
