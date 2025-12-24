@@ -9,6 +9,7 @@ import (
 	"github.com/zeromicro/go-zero/core/logx"
 
 	"github.com/zero-net-panel/zero-net-panel/internal/repository"
+	"github.com/zero-net-panel/zero-net-panel/internal/security"
 	"github.com/zero-net-panel/zero-net-panel/internal/svc"
 	"github.com/zero-net-panel/zero-net-panel/internal/types"
 	"github.com/zero-net-panel/zero-net-panel/pkg/metrics"
@@ -88,6 +89,12 @@ func (l *SyncLogic) Sync(req *types.AdminSyncNodeKernelRequest) (resp *types.Adm
 		Revision: stored.Revision,
 		SyncedAt: stored.LastSyncedAt.Unix(),
 		Message:  message,
+	}
+
+	if actor, ok := security.UserFromContext(l.ctx); ok {
+		l.Infof("audit: node sync by=%s node_id=%d protocol=%s revision=%s", strings.TrimSpace(actor.Email), req.NodeID, stored.Protocol, stored.Revision)
+	} else {
+		l.Infof("audit: node sync by=unknown node_id=%d protocol=%s revision=%s", req.NodeID, stored.Protocol, stored.Revision)
 	}
 
 	return resp, nil

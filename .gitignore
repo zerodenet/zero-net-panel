@@ -1,0 +1,73 @@
+# OS artifacts
+.DS_Store
+
+# Editor and IDE settings
+.idea/
+.vscode/
+*.iml
+*.swp
+*.swo
+
+# Go build artifacts
+bin/
+build/
+dist/
+tmp/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+*.a
+*.o
+*.obj
+*.prof
+*.pprof
+*.cover
+coverage.*
+cover.*
+*.cgo
+*.cache
+
+# Go workspace files
+go.work
+go.work.sum
+
+# Dependencies and tooling outputs
+vendor/
+logs/
+*.log
+*.tmp
+*.pid
+*.sqlite
+*.sqlite3
+*.db
+*.db-journal
+
+# Configuration and secrets
+.env
+.env.*
+*.local
+*.yaml.local
+*.json.local
+
+# AI assistant/tool artifacts
+/.aider*
+/.cursor/
+/.codeium/
+/.copilot/
+/.openai/
+/.llm-cache/
+/chatgpt-logs/
+/gpt-cache/
+/*.gptconfig
+/*.gptlog
+AGENTS.md
+
+# Archives
+*.zip
+*.tar
+*.tar.gz
+*.tgz

@@ -1,0 +1,17 @@
+[Unit]
+Description=Zero Network Panel service
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=znp
+Group=znp
+Environment=ZNP_CONFIG=/etc/znp/znp.yaml
+ExecStartPre=/usr/local/bin/znp tools check-config --config ${ZNP_CONFIG}
+ExecStart=/usr/local/bin/znp serve --config ${ZNP_CONFIG} --migrate-to=latest
+Restart=on-failure
+RestartSec=5s
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target

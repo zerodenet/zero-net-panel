@@ -1,0 +1,22 @@
+# CGO-enabled build for SQLite support (larger image).
+
+FROM golang:1.25 as builder
+WORKDIR /src
+
+RUN apt-get update && apt-get install -y build-essential sqlite3 libsqlite3-dev && rm -rf /var/lib/apt/lists/*
+COPY go.mod go.sum ./
+RUN go mod download
+
+COPY . .
+RUN CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build -ldflags "-s -w" -o /out/znp ./cmd/znp
+
+FROM debian:bookworm-slim
+ENV ZNP_CONFIG=/etc/znp/znp.yaml
+RUN apt-get update && apt-get install -y ca-certificates libsqlite3-0 && rm -rf /var/lib/apt/lists/*
+RUN groupadd -r znp && useradd -r -g znp znp
+COPY --from=builder /out/znp /usr/local/bin/znp
+COPY etc/znp-api.yaml /etc/znp/znp.yaml.sample
+USER znp
+EXPOSE 8888
+ENTRYPOINT ["/usr/local/bin/znp"]
+CMD ["serve", "--config", "/etc/znp/znp.yaml", "--migrate-to", "latest"]

@@ -74,6 +74,17 @@ Metrics:
 
 Admin:
   RoutePrefix: admin
+  Access:
+    AllowCIDRs: []
+    RateLimitPerMinute: 0
+    Burst: 0
+
+Webhook:
+  AllowCIDRs: []
+  SharedToken: ""
+  Stripe:
+    SigningSecret: ""
+    ToleranceSeconds: 300
 
 GRPCServer:
   Enable: true

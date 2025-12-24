@@ -2,6 +2,7 @@ package order
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -36,6 +37,11 @@ func NewCreateLogic(ctx context.Context, svcCtx *svc.ServiceContext) *CreateLogi
 // Create issues an order for the given plan and settles payment according to the selected method.
 func (l *CreateLogic) Create(req *types.UserCreateOrderRequest) (resp *types.UserOrderResponse, err error) {
 	start := time.Now()
+	idempotencyKey := strings.TrimSpace(req.IdempotencyKey)
+	var idemPtr *string
+	if idempotencyKey != "" {
+		idemPtr = &idempotencyKey
+	}
 	method := strings.TrimSpace(strings.ToLower(req.PaymentMethod))
 	if method == "" {
 		method = repository.PaymentMethodBalance
@@ -56,6 +62,23 @@ func (l *CreateLogic) Create(req *types.UserCreateOrderRequest) (resp *types.Use
 	user, ok := security.UserFromContext(l.ctx)
 	if !ok {
 		return nil, repository.ErrUnauthorized
+	}
+
+	if idempotencyKey != "" {
+		if existing, items, payments, err := l.svcCtx.Repositories.Order.GetByIdempotencyKey(l.ctx, user.ID, idempotencyKey); err == nil {
+			balance, balErr := l.svcCtx.Repositories.Balance.GetBalance(l.ctx, user.ID)
+			if balErr != nil {
+				return nil, balErr
+			}
+			detail := orderutil.ToOrderDetail(existing, items, nil, payments)
+			resp := &types.UserOrderResponse{
+				Order:   detail,
+				Balance: orderutil.ToBalanceSnapshot(balance),
+			}
+			return resp, nil
+		} else if !errors.Is(err, repository.ErrNotFound) {
+			return nil, err
+		}
 	}
 
 	if req.PlanID == 0 {
@@ -145,18 +168,19 @@ func (l *CreateLogic) Create(req *types.UserCreateOrderRequest) (resp *types.Use
 		}
 
 		orderModel := repository.Order{
-			Number:        orderNumber,
-			UserID:        user.ID,
-			PlanID:        &plan.ID,
-			Status:        repository.OrderStatusPendingPayment,
-			PaymentMethod: method,
-			PaymentStatus: repository.OrderPaymentStatusPending,
-			TotalCents:    totalCents,
-			Currency:      currency,
-			Metadata:      metadata,
-			PlanSnapshot:  snapshot,
-			CreatedAt:     now,
-			UpdatedAt:     now,
+			Number:         orderNumber,
+			UserID:         user.ID,
+			IdempotencyKey: idemPtr,
+			PlanID:         &plan.ID,
+			Status:         repository.OrderStatusPendingPayment,
+			PaymentMethod:  method,
+			PaymentStatus:  repository.OrderPaymentStatusPending,
+			TotalCents:     totalCents,
+			Currency:       currency,
+			Metadata:       metadata,
+			PlanSnapshot:   snapshot,
+			CreatedAt:      now,
+			UpdatedAt:      now,
 		}
 
 		if totalCents == 0 || method == repository.PaymentMethodBalance {
@@ -248,6 +272,20 @@ func (l *CreateLogic) Create(req *types.UserCreateOrderRequest) (resp *types.Use
 		return nil
 	})
 	if err != nil {
+		if errors.Is(err, repository.ErrConflict) && idempotencyKey != "" {
+			existing, items, payments, fetchErr := l.svcCtx.Repositories.Order.GetByIdempotencyKey(l.ctx, user.ID, idempotencyKey)
+			if fetchErr == nil {
+				balance, balErr := l.svcCtx.Repositories.Balance.GetBalance(l.ctx, user.ID)
+				if balErr != nil {
+					return nil, balErr
+				}
+				detail := orderutil.ToOrderDetail(existing, items, nil, payments)
+				return &types.UserOrderResponse{
+					Order:   detail,
+					Balance: orderutil.ToBalanceSnapshot(balance),
+				}, nil
+			}
+		}
 		return nil, err
 	}
 

@@ -23,6 +23,7 @@ func NewRootCommand() *cobra.Command {
 		NewServeCommand(opts),
 		NewMigrateCommand(opts),
 		NewToolsCommand(opts),
+		NewVersionCommand(),
 	)
 
 	return cmd

@@ -54,6 +54,44 @@ func (l *PaymentCallbackLogic) Process(req *types.AdminPaymentCallbackRequest) (
 		return nil, err
 	}
 
+	var existingPayment repository.OrderPayment
+	found := false
+	for _, payment := range paymentsMap[order.ID] {
+		if payment.ID == req.PaymentID {
+			existingPayment = payment
+			found = true
+			break
+		}
+	}
+	if !found {
+		return nil, repository.ErrNotFound
+	}
+	if strings.EqualFold(existingPayment.Status, status) {
+		refundsMap, err := l.svcCtx.Repositories.Order.ListRefunds(l.ctx, []uint64{order.ID})
+		if err != nil {
+			return nil, err
+		}
+		detail := orderutil.ToOrderDetail(order, items, refundsMap[order.ID], paymentsMap[order.ID])
+		u, err := l.svcCtx.Repositories.User.Get(l.ctx, order.UserID)
+		if err != nil {
+			return nil, err
+		}
+		resp := types.AdminOrderResponse{
+			Order: types.AdminOrderDetail{
+				OrderDetail: detail,
+				User: types.OrderUserSummary{
+					ID:          u.ID,
+					Email:       u.Email,
+					DisplayName: u.DisplayName,
+				},
+			},
+		}
+		return &resp, nil
+	}
+	if strings.EqualFold(existingPayment.Status, repository.OrderPaymentStatusSucceeded) && status == repository.OrderPaymentStatusFailed {
+		return nil, repository.ErrInvalidState
+	}
+
 	var updatedOrder repository.Order
 	var updatedPayment repository.OrderPayment
 
@@ -156,6 +194,8 @@ func (l *PaymentCallbackLogic) Process(req *types.AdminPaymentCallbackRequest) (
 			},
 		},
 	}
+
+	l.Infof("audit: payment callback order=%d payment=%d status=%s reference=%s", updatedOrder.ID, updatedPayment.ID, status, strings.TrimSpace(req.Reference))
 
 	return &resp, nil
 }

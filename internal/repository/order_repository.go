@@ -34,7 +34,8 @@ const OrderStatusPending = OrderStatusPendingPayment
 type Order struct {
 	ID                   uint64         `gorm:"primaryKey"`
 	Number               string         `gorm:"size:40;uniqueIndex"`
-	UserID               uint64         `gorm:"index"`
+	UserID               uint64         `gorm:"index;index:idx_order_user_idempotency,unique"`
+	IdempotencyKey       *string        `gorm:"size:128;index:idx_order_user_idempotency,unique"`
 	PlanID               *uint64        `gorm:"column:plan_id"`
 	Status               string         `gorm:"size:32"`
 	PaymentMethod        string         `gorm:"size:32"`
@@ -128,6 +129,7 @@ type ListOrdersOptions struct {
 type OrderRepository interface {
 	Create(ctx context.Context, order Order, items []OrderItem) (Order, []OrderItem, error)
 	Get(ctx context.Context, id uint64) (Order, []OrderItem, error)
+	GetByIdempotencyKey(ctx context.Context, userID uint64, key string) (Order, []OrderItem, []OrderPayment, error)
 	GetForUpdate(ctx context.Context, id uint64) (Order, error)
 	Save(ctx context.Context, order Order) (Order, error)
 	List(ctx context.Context, opts ListOrdersOptions) ([]Order, int64, error)
@@ -225,6 +227,34 @@ func (r *orderRepository) Get(ctx context.Context, id uint64) (Order, []OrderIte
 	}
 
 	return order, items, nil
+}
+
+func (r *orderRepository) GetByIdempotencyKey(ctx context.Context, userID uint64, key string) (Order, []OrderItem, []OrderPayment, error) {
+	if err := ctx.Err(); err != nil {
+		return Order{}, nil, nil, err
+	}
+	if userID == 0 || strings.TrimSpace(key) == "" {
+		return Order{}, nil, nil, ErrInvalidArgument
+	}
+
+	var order Order
+	if err := r.db.WithContext(ctx).
+		Where("user_id = ? AND idempotency_key = ?", userID, key).
+		First(&order).Error; err != nil {
+		return Order{}, nil, nil, translateError(err)
+	}
+
+	itemsByOrder, err := r.ListItems(ctx, []uint64{order.ID})
+	if err != nil {
+		return Order{}, nil, nil, err
+	}
+
+	paymentsByOrder, err := r.ListPayments(ctx, []uint64{order.ID})
+	if err != nil {
+		return Order{}, nil, nil, err
+	}
+
+	return order, itemsByOrder[order.ID], paymentsByOrder[order.ID], nil
 }
 
 func (r *orderRepository) GetForUpdate(ctx context.Context, id uint64) (Order, error) {

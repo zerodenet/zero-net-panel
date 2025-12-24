@@ -26,6 +26,10 @@ import (
 func RegisterHandlers(server *rest.Server, svcCtx *svc.ServiceContext) {
 	authMiddleware := middleware.NewAuthMiddleware(svcCtx.Auth, svcCtx.Repositories.User)
 	thirdPartyMiddleware := middleware.NewThirdPartyMiddleware(svcCtx.Repositories.Security)
+	accessMiddleware := middleware.NewAccessMiddleware(svcCtx.Config.Admin.Access)
+	webhookMiddleware := middleware.NewWebhookMiddleware(svcCtx.Config.Webhook)
+
+	server.Use(middleware.HTTPMetricsMiddleware{}.Handler)
 
 	server.AddRoutes(
 		[]rest.Route{
@@ -165,19 +169,24 @@ func RegisterHandlers(server *rest.Server, svcCtx *svc.ServiceContext) {
 			Path:    "/orders/:id/refund",
 			Handler: adminOrders.AdminRefundOrderHandler(svcCtx),
 		},
-		{
-			Method:  http.MethodPost,
-			Path:    "/orders/payments/callback",
-			Handler: adminOrders.AdminPaymentCallbackHandler(svcCtx),
-		},
 	}
-	adminRoutes = rest.WithMiddlewares([]rest.Middleware{authMiddleware.RequireRoles("admin")}, adminRoutes...)
+	adminRoutes = rest.WithMiddlewares([]rest.Middleware{accessMiddleware.Handler, authMiddleware.RequireRoles("admin")}, adminRoutes...)
 	adminPrefix := svcCtx.Config.Admin.RoutePrefix
 	adminBase := "/api/v1"
 	if adminPrefix != "" {
 		adminBase += "/" + adminPrefix
 	}
 	server.AddRoutes(adminRoutes, rest.WithPrefix(adminBase))
+
+	webhookRoutes := []rest.Route{
+		{
+			Method:  http.MethodPost,
+			Path:    "/orders/payments/callback",
+			Handler: adminOrders.AdminPaymentCallbackHandler(svcCtx),
+		},
+	}
+	webhookRoutes = rest.WithMiddlewares([]rest.Middleware{webhookMiddleware.Handler}, webhookRoutes...)
+	server.AddRoutes(webhookRoutes, rest.WithPrefix(adminBase))
 
 	userRoutes := []rest.Route{
 		{

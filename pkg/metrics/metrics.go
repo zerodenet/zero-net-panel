@@ -11,6 +11,23 @@ import (
 const namespace = "znp"
 
 var (
+	// HTTPRequestsTotal counts HTTP requests grouped by path template, method and status.
+	HTTPRequestsTotal = promauto.NewCounterVec(prometheus.CounterOpts{
+		Namespace: namespace,
+		Subsystem: "http",
+		Name:      "requests_total",
+		Help:      "Total number of HTTP requests.",
+	}, []string{"path", "method", "status"})
+
+	// HTTPRequestDurationSeconds records HTTP request latency grouped by path template and method.
+	HTTPRequestDurationSeconds = promauto.NewHistogramVec(prometheus.HistogramOpts{
+		Namespace: namespace,
+		Subsystem: "http",
+		Name:      "request_duration_seconds",
+		Help:      "Duration of HTTP requests in seconds.",
+		Buckets:   []float64{0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2, 5},
+	}, []string{"path", "method", "status"})
+
 	// NodeSyncTotal counts admin-triggered node synchronization attempts.
 	NodeSyncTotal = promauto.NewCounterVec(prometheus.CounterOpts{
 		Namespace: namespace,
@@ -164,6 +181,25 @@ func ObserveOrderRefund(actor string, amount float64, result string, duration ti
 	OrderRefundTotal.WithLabelValues(sanitizedActor, sanitizedResult).Inc()
 	OrderRefundDurationSeconds.WithLabelValues(sanitizedActor, sanitizedResult).Observe(duration.Seconds())
 	OrderRefundAmount.WithLabelValues(sanitizedActor).Observe(amount)
+}
+
+// ObserveHTTPRequest records an HTTP request latency and status.
+func ObserveHTTPRequest(path, method, status string, duration time.Duration) {
+	sanitizedPath := path
+	if sanitizedPath == "" {
+		sanitizedPath = "/"
+	}
+	sanitizedMethod := strings.ToUpper(strings.TrimSpace(method))
+	if sanitizedMethod == "" {
+		sanitizedMethod = "GET"
+	}
+	status = strings.TrimSpace(status)
+	if status == "" {
+		status = "unknown"
+	}
+
+	HTTPRequestsTotal.WithLabelValues(sanitizedPath, sanitizedMethod, status).Inc()
+	HTTPRequestDurationSeconds.WithLabelValues(sanitizedPath, sanitizedMethod, status).Observe(duration.Seconds())
 }
 
 func normalizeResult(result string) string {

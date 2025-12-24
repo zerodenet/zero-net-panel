@@ -121,6 +121,13 @@
    }
    ```
 4. 客户端后续请求需携带 `X-ZNP-API-Key`、`X-ZNP-Timestamp`、`X-ZNP-Nonce` 与 `X-ZNP-Signature`，并在开启加密时附加 `X-ZNP-IV` 与 `X-ZNP-Encrypted: true`。
-5. 若收到 `code=401001`（signature mismatch），请检查加签顺序是否为 `timestamp + "\n" + nonce + "\n" + body`，并确保时间戳处于允许窗口内。
+5. 支付回调建议使用 Webhook 配置：Stripe 使用 `Stripe-Signature`（在 `Webhook.Stripe.SigningSecret` 配置），或通过 `Webhook.SharedToken` 携带 `X-ZNP-Webhook-Token`。
+6. 若收到 `code=401001`（signature mismatch），请检查第三方签名顺序是否为 `timestamp + "\n" + nonce + "\n" + body`，并确保时间戳处于允许窗口内。
 
 更多巡检、升级与排障方案请继续阅读 [docs/service-upgrade.md](service-upgrade.md)。
+
+## 运维工具与脚本
+- 配置校验：`go run ./cmd/znp tools check-config --config <file>`，输出 HTTP/GRPC/DB/缓存/Webhook/管理入口摘要。
+- 探活与错误扫描：`scripts/healthcheck.sh`，可覆盖 `ZNP_HEALTH_URL`、`ZNP_LOG_FILE`、`ZNP_ERROR_PATTERNS`，用于 cron 或探针。
+- 数据库备份：`scripts/backup-db.sh <output.sql>`，通过 `ZNP_DB_DRIVER=mysql|postgres` 等 env 选择驱动/凭据。
+- 进程托管：`deploy/systemd/znp.service`、`deploy/docker/Dockerfile*` 提供最小示例；可结合 `/api/v1/ping` 和 `/metrics` 做健康/指标采集。

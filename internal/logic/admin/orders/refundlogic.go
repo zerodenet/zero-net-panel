@@ -205,5 +205,8 @@ func (l *RefundLogic) Refund(req *types.AdminRefundOrderRequest) (*types.AdminOr
 			},
 		},
 	}
+
+	l.Infof("audit: refund order=%s amount=%d actor=%s reason=%s", order.Number, req.AmountCents, actor.Email, strings.TrimSpace(req.Reason))
+
 	return &resp, nil
 }

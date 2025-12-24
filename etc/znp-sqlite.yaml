@@ -39,3 +39,22 @@ Metrics:
   Enable: true
   Path: /metrics
   ListenOn: ""
+
+Admin:
+  RoutePrefix: admin
+  Access:
+    AllowCIDRs: []
+    RateLimitPerMinute: 0
+    Burst: 0
+
+Webhook:
+  AllowCIDRs: []
+  SharedToken: ""
+  Stripe:
+    SigningSecret: ""
+    ToleranceSeconds: 300
+
+GRPCServer:
+  Enable: true
+  ListenOn: 0.0.0.0:8890
+  Reflection: true

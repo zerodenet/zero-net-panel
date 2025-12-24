@@ -207,3 +207,78 @@ func TestPaymentCallbackLogic_Failed(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, repository.OrderPaymentStatusFailed, paymentsMap[order.ID][0].Status)
 }
+
+func TestPaymentCallbackLogic_Idempotent(t *testing.T) {
+	svcCtx, cleanup := setupPaymentCallbackTest(t)
+	defer cleanup()
+
+	ctx := context.Background()
+	now := time.Now().UTC()
+
+	customer := repository.User{
+		Email:       "customer3@test.dev",
+		DisplayName: "Customer 3",
+		Roles:       []string{"user"},
+		Status:      "active",
+		CreatedAt:   now,
+		UpdatedAt:   now,
+	}
+	require.NoError(t, svcCtx.DB.Create(&customer).Error)
+
+	orderRepo := svcCtx.Repositories.Order
+
+	order, _, err := orderRepo.Create(ctx, repository.Order{
+		UserID:        customer.ID,
+		Status:        repository.OrderStatusPendingPayment,
+		PaymentMethod: repository.PaymentMethodExternal,
+		PaymentStatus: repository.OrderPaymentStatusPending,
+		TotalCents:    1000,
+		Currency:      "CNY",
+	}, []repository.OrderItem{})
+	require.NoError(t, err)
+
+	payment, err := orderRepo.CreatePayment(ctx, repository.OrderPayment{
+		OrderID:     order.ID,
+		Provider:    "alipay",
+		Method:      repository.PaymentMethodExternal,
+		Status:      repository.OrderPaymentStatusPending,
+		AmountCents: 1000,
+		Currency:    "CNY",
+	})
+	require.NoError(t, err)
+
+	logic := NewPaymentCallbackLogic(ctx, svcCtx)
+	resp, err := logic.Process(&types.AdminPaymentCallbackRequest{
+		OrderID:        order.ID,
+		PaymentID:      payment.ID,
+		Status:         repository.OrderPaymentStatusSucceeded,
+		Reference:      "ref-1",
+		FailureCode:    "",
+		FailureMessage: "",
+	})
+	require.NoError(t, err)
+	require.Equal(t, repository.OrderPaymentStatusSucceeded, resp.Order.OrderDetail.PaymentStatus)
+
+	// Same status should be treated idempotently and return existing record.
+	second, err := logic.Process(&types.AdminPaymentCallbackRequest{
+		OrderID:        order.ID,
+		PaymentID:      payment.ID,
+		Status:         repository.OrderPaymentStatusSucceeded,
+		Reference:      "ref-1",
+		FailureCode:    "",
+		FailureMessage: "",
+	})
+	require.NoError(t, err)
+	require.Equal(t, resp.Order.OrderDetail.PaymentStatus, second.Order.OrderDetail.PaymentStatus)
+	require.Equal(t, resp.Order.OrderDetail.PaymentReference, second.Order.OrderDetail.PaymentReference)
+
+	// Downgrade from success to failed should be rejected.
+	_, err = logic.Process(&types.AdminPaymentCallbackRequest{
+		OrderID:        order.ID,
+		PaymentID:      payment.ID,
+		Status:         repository.OrderPaymentStatusFailed,
+		FailureCode:    "duplicate",
+		FailureMessage: "should not override success",
+	})
+	require.Error(t, err)
+}

@@ -20,6 +20,7 @@ type Config struct {
 	Auth     AuthConfig       `json:"auth" yaml:"Auth"`
 	Metrics  MetricsConfig    `json:"metrics" yaml:"Metrics"`
 	Admin    AdminConfig      `json:"admin" yaml:"Admin"`
+	Webhook  WebhookConfig    `json:"webhook" yaml:"Webhook"`
 	GRPC     GRPCServerConfig `json:"grpcServer" yaml:"GRPCServer"`
 }
 
@@ -89,7 +90,8 @@ func (m MetricsConfig) Standalone() bool {
 
 // AdminConfig 控制管理端路由相关配置。
 type AdminConfig struct {
-	RoutePrefix string `json:"routePrefix" yaml:"RoutePrefix"`
+	RoutePrefix string            `json:"routePrefix" yaml:"RoutePrefix"`
+	Access      AdminAccessConfig `json:"access" yaml:"Access"`
 }
 
 // Normalize 统一前缀写法并设置默认值。
@@ -100,6 +102,7 @@ func (a *AdminConfig) Normalize() {
 		prefix = "admin"
 	}
 	a.RoutePrefix = prefix
+	a.Access.Normalize()
 }
 
 // APIBasePath 返回管理端挂载的完整 API 前缀。
@@ -108,6 +111,56 @@ func (a AdminConfig) APIBasePath() string {
 		return "/api/v1"
 	}
 	return "/api/v1/" + a.RoutePrefix
+}
+
+// AdminAccessConfig controls admin ingress policies.
+type AdminAccessConfig struct {
+	AllowCIDRs         []string `json:"allowCidrs" yaml:"AllowCIDRs"`
+	RateLimitPerMinute int      `json:"rateLimitPerMinute" yaml:"RateLimitPerMinute"`
+	Burst              int      `json:"burst" yaml:"Burst"`
+}
+
+// Normalize applies sane defaults.
+func (a *AdminAccessConfig) Normalize() {
+	if a.RateLimitPerMinute < 0 {
+		a.RateLimitPerMinute = 0
+	}
+	if a.Burst < 0 {
+		a.Burst = 0
+	}
+	if a.RateLimitPerMinute > 0 && a.Burst == 0 {
+		a.Burst = a.RateLimitPerMinute / 6
+		if a.Burst < 1 {
+			a.Burst = 1
+		}
+	}
+}
+
+// WebhookConfig controls external callback validation.
+type WebhookConfig struct {
+	AllowCIDRs  []string            `json:"allowCidrs" yaml:"AllowCIDRs"`
+	SharedToken string              `json:"sharedToken" yaml:"SharedToken"`
+	Stripe      StripeWebhookConfig `json:"stripe" yaml:"Stripe"`
+}
+
+// Normalize applies defaults.
+func (w *WebhookConfig) Normalize() {
+	w.SharedToken = strings.TrimSpace(w.SharedToken)
+	w.Stripe.Normalize()
+}
+
+// StripeWebhookConfig controls Stripe webhook signature verification.
+type StripeWebhookConfig struct {
+	SigningSecret    string `json:"signingSecret" yaml:"SigningSecret"`
+	ToleranceSeconds int    `json:"toleranceSeconds" yaml:"ToleranceSeconds"`
+}
+
+// Normalize applies defaults for Stripe.
+func (s *StripeWebhookConfig) Normalize() {
+	s.SigningSecret = strings.TrimSpace(s.SigningSecret)
+	if s.ToleranceSeconds <= 0 {
+		s.ToleranceSeconds = 300
+	}
 }
 
 // GRPCServerConfig 控制内建 gRPC 服务监听配置。
@@ -155,6 +208,7 @@ func (g GRPCServerConfig) ReflectionEnabled() bool {
 func (c *Config) Normalize() {
 	c.Metrics.Normalize()
 	c.Admin.Normalize()
+	c.Webhook.Normalize()
 	c.GRPC.Normalize()
 	c.Middlewares.Prometheus = c.Metrics.Enabled()
 	c.Middlewares.Metrics = c.Metrics.Enabled()

@@ -56,6 +56,8 @@ func (l *PublishLogic) Publish(req *types.AdminPublishSubscriptionTemplateReques
 	summary := toTemplateSummary(tpl)
 	historyEntry := toHistoryEntry(history)
 
+	l.Infof("audit: template publish template_id=%d operator=%s changelog=%s", tpl.ID, operator, strings.TrimSpace(req.Changelog))
+
 	return &types.AdminPublishSubscriptionTemplateResponse{
 		Template: summary,
 		History:  historyEntry,
