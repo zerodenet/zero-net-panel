@@ -41,7 +41,7 @@ func TestGenerateSecret(t *testing.T) {
 func TestGenerateSecretError(t *testing.T) {
 	// Save original reader
 	originalRead := rand.Read
-	
+
 	// This test is more for documentation purposes since we can't easily mock rand.Read
 	// In a real error scenario, generateSecret would fail if rand.Read fails
 	_ = originalRead

@@ -129,10 +129,10 @@ func (w *InstallWizard) configureDatabaseStep() error {
 	w.cmd.Println("  3) PostgreSQL")
 
 	choice := w.prompt("Enter choice [1-3]", "1")
-	
+
 	var driver string
 	var defaultDSN string
-	
+
 	switch choice {
 	case "1":
 		driver = "sqlite"
@@ -148,7 +148,7 @@ func (w *InstallWizard) configureDatabaseStep() error {
 	}
 
 	w.cfg.Database.Driver = driver
-	
+
 	if driver == "sqlite" {
 		dbPath := w.prompt("SQLite database file path", defaultDSN)
 		w.cfg.Database.DSN = dbPath
@@ -339,7 +339,7 @@ func (w *InstallWizard) initializeDatabaseStep() error {
 	}
 
 	w.cmd.Println("Running database migrations...")
-	
+
 	result, err := bootstrap.ApplyMigrations(w.cmd.Context(), db, 0, false)
 	if err != nil {
 		return fmt.Errorf("migration failed: %w", err)
@@ -347,7 +347,7 @@ func (w *InstallWizard) initializeDatabaseStep() error {
 
 	w.cmd.Printf("✓ Migrations applied: %d version(s)\n", len(result.AppliedVersions))
 	w.cmd.Printf("  Current schema version: %d\n\n", result.AfterVersion)
-	
+
 	return nil
 }
 
@@ -432,19 +432,19 @@ func (w *InstallWizard) prompt(message, defaultValue string) string {
 
 func (w *InstallWizard) promptPassword(message string) string {
 	w.cmd.Printf("%s: ", message)
-	
+
 	// Read password from stdin
 	input, err := w.reader.ReadString('\n')
 	if err != nil {
 		return ""
 	}
-	
+
 	password := strings.TrimSpace(input)
 	// Don't echo empty passwords in automated mode, but allow them for testing
 	if password == "" {
 		return ""
 	}
-	
+
 	return password
 }
 
