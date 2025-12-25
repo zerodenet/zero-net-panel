@@ -397,7 +397,7 @@ func (w *InstallWizard) createAdminUserStep() error {
 	}
 
 	w.cmd.Println("✓ Admin user created successfully")
-	
+
 	// Clear credentials from memory after successful creation
 	w.clearCredentials()
 	return nil
