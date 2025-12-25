@@ -1,0 +1,97 @@
+version: '3.8'
+
+services:
+  # Zero Network Panel 主服务
+  znp:
+    build:
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile.cgo
+    container_name: znp-server
+    restart: unless-stopped
+    ports:
+      - "8888:8888"    # HTTP API
+      - "8890:8890"    # gRPC (如果启用)
+      - "9100:9100"    # Prometheus metrics (如果启用)
+    volumes:
+      # 配置文件（首次运行后会生成）
+      - ./config:/etc/znp
+      # SQLite 数据库文件（如果使用 SQLite）
+      - ./data:/var/lib/znp
+      # 日志目录（可选）
+      - ./logs:/var/log/znp
+    environment:
+      # 配置文件路径
+      - ZNP_CONFIG=/etc/znp/znp.yaml
+      # 可选：通过环境变量覆盖配置
+      # - ZNP_DB_DRIVER=mysql
+      # - ZNP_DB_DSN=user:password@tcp(mysql:3306)/znp?parseTime=true
+    depends_on:
+      - mysql
+    networks:
+      - znp-network
+    # 健康检查
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8888/api/v1/ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    # 首次运行时使用安装向导
+    # 取消注释以下行来运行安装向导而不是直接启动服务
+    # command: ["install", "--output", "/etc/znp/znp.yaml"]
+    # 正常运行模式
+    command: ["serve", "--config", "/etc/znp/znp.yaml", "--migrate-to", "latest"]
+
+  # MySQL 数据库（可选，如果不使用 SQLite）
+  mysql:
+    image: mysql:8.0
+    container_name: znp-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: znp
+      MYSQL_USER: znp
+      MYSQL_PASSWORD: znppassword
+    volumes:
+      - mysql-data:/var/lib/mysql
+    ports:
+      - "3306:3306"
+    networks:
+      - znp-network
+    # 健康检查
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-prootpassword"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # PostgreSQL 数据库（备选方案）
+  postgres:
+    image: postgres:14
+    container_name: znp-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: znp
+      POSTGRES_USER: znp
+      POSTGRES_PASSWORD: znppassword
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - znp-network
+    profiles:
+      - postgres  # 使用 profile 来可选启用 PostgreSQL
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U znp"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+networks:
+  znp-network:
+    driver: bridge
+
+volumes:
+  mysql-data:
+  postgres-data:

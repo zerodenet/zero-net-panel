@@ -24,6 +24,7 @@ func NewRootCommand() *cobra.Command {
 		NewMigrateCommand(opts),
 		NewToolsCommand(opts),
 		NewVersionCommand(),
+		NewInstallCommand(opts),
 	)
 
 	return cmd

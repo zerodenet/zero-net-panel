@@ -1,0 +1,70 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Go build artifacts
+bin/
+build/
+dist/
+tmp/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+
+# Test coverage
+*.cover
+*.prof
+coverage.*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Git
+.git/
+.gitignore
+
+# Documentation build
+docs/_build/
+
+# Development files
+*.log
+*.tmp
+*.pid
+
+# Database files (in case present in repo)
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+
+# Configuration files with secrets
+*.local
+.env
+.env.*
+
+# Test data
+testdata/
+
+# CI/CD
+.github/
+
+# Markdown documentation (keep only essential docs in image)
+*.md
+!README.md
+
+# Other
+plain.md
+AGENTS.md

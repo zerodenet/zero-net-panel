@@ -1,6 +1,8 @@
 module github.com/zero-net-panel/zero-net-panel
 
-go 1.25
+go 1.24.0
+
+toolchain go1.24.11
 
 require (
 	github.com/golang-jwt/jwt/v5 v5.3.0
@@ -12,6 +14,7 @@ require (
 	golang.org/x/text v0.32.0
 	golang.org/x/time v0.10.0
 	google.golang.org/grpc v1.77.0
+	gopkg.in/yaml.v3 v3.0.1
 	gorm.io/driver/mysql v1.6.0
 	gorm.io/driver/postgres v1.6.0
 	gorm.io/driver/sqlite v1.6.0
@@ -76,5 +79,4 @@ require (
 	google.golang.org/genproto v0.0.0-20230306155012-7f2fa6fef1f4 // indirect
 	google.golang.org/protobuf v1.36.10 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
-	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
