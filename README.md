@@ -70,6 +70,25 @@ API 入口文件位于 `api/znp.api`，该文件通过 `import` 聚合 `api/shar
 ## 快速启动
 更多详细步骤、依赖准备及请求示例可参考 [docs/getting-started.md](docs/getting-started.md)。
 
+### 方式一：使用安装向导（推荐首次部署）
+
+运行交互式安装向导，自动完成配置文件生成、数据库初始化和管理员账户创建：
+
+```bash
+go run ./cmd/znp install
+```
+
+向导将引导您完成：
+- 数据库配置（支持 SQLite/MySQL/PostgreSQL）
+- 服务监听配置
+- JWT 密钥自动生成
+- 管理员账户创建
+- 可选功能配置（Prometheus 监控、gRPC 服务）
+
+详细使用说明请参考 [安装向导指南](docs/installation-wizard.md)。
+
+### 方式二：手动配置
+
 1. **选择部署场景并复制配置文件**：
    - **开发环境**：使用 `etc/znp-sqlite.yaml`，默认启用内存缓存并可结合 `--seed-demo` 注入演示数据。
    - **测试/集成环境**：基于 `etc/znp-api.yaml` 修改，将 `Database.DSN` 指向独立的 MySQL 数据库，建议启用 `Metrics.ListenOn` 便于观测。
@@ -85,6 +104,49 @@ API 入口文件位于 `api/znp.api`，该文件通过 `import` 聚合 `api/shar
    ```
    若仅需 HTTP，可追加 `--disable-grpc`；容器或守护进程场景可结合 `--graceful-timeout`、`--log-level` 等参数。
 4. **健康检查与验证**：访问 `GET http://localhost:8888/api/v1/ping` 或 `go run ./cmd/znp tools check-config --config <file>`，确认服务就绪。
+
+### 方式三：使用 Docker（推荐生产部署）
+
+使用 Docker 容器化部署，支持一键启动和自动化运维：
+
+#### 使用 Docker Compose（最简单）
+
+```bash
+cd deploy/docker
+
+# 首次部署：运行安装向导生成配置
+docker-compose -f docker-compose.sqlite.yml run --rm znp install --output /etc/znp/znp.yaml
+
+# 启动服务
+docker-compose -f docker-compose.sqlite.yml up -d
+
+# 查看日志
+docker-compose -f docker-compose.sqlite.yml logs -f
+```
+
+#### 使用 Docker 命令
+
+```bash
+# 1. 构建镜像
+docker build -t znp:latest -f deploy/docker/Dockerfile.cgo .
+
+# 2. 运行安装向导
+mkdir -p ./config ./data
+docker run -it --rm \
+  -v $(pwd)/config:/etc/znp \
+  -v $(pwd)/data:/var/lib/znp \
+  znp:latest install --output /etc/znp/znp.yaml
+
+# 3. 启动服务
+docker run -d \
+  --name znp-server \
+  -v $(pwd)/config:/etc/znp:ro \
+  -v $(pwd)/data:/var/lib/znp \
+  -p 8888:8888 \
+  znp:latest serve --config /etc/znp/znp.yaml --migrate-to latest
+```
+
+更多 Docker 部署选项（MySQL、PostgreSQL、集群部署等）请参考 [Docker 部署指南](deploy/docker/README.md)。
 
 ## 监控与指标
 
@@ -116,9 +178,11 @@ Metrics:
 ## CLI 工具集
 项目内置 `znp` 命令行用于统一管理服务：
 
+- `go run ./cmd/znp install`：交互式安装向导，自动生成配置文件、初始化数据库并创建管理员账户（首次部署推荐）。
 - `go run ./cmd/znp serve`：同时启动 HTTP 与 gRPC 服务，可配合 `--disable-grpc` 仅运行 HTTP。
 - `go run ./cmd/znp migrate`：执行数据库迁移与种子数据注入，支持 `--to` 指定目标版本。
 - `go run ./cmd/znp tools check-config`：校验配置文件并输出摘要。
+- `go run ./cmd/znp version`：显示版本信息。
 
 > 配置提示：`Admin.RoutePrefix` 支持自定义管理端路由前缀；`GRPCServer` 配置块用于控制监听地址、开关及 reflection。
 

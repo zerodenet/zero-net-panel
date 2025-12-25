@@ -1,0 +1,33 @@
+version: '3.8'
+
+# 简化的 Docker Compose 配置，使用 SQLite 数据库
+# 适合开发环境和快速部署测试
+
+services:
+  znp:
+    build:
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile.cgo
+    container_name: znp-server-sqlite
+    restart: unless-stopped
+    ports:
+      - "8888:8888"    # HTTP API
+      - "8890:8890"    # gRPC
+      - "9100:9100"    # Prometheus metrics
+    volumes:
+      # 配置和数据目录
+      - ./config:/etc/znp
+      - ./data:/var/lib/znp
+    environment:
+      - ZNP_CONFIG=/etc/znp/znp.yaml
+    # 健康检查
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8888/api/v1/ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    # 首次运行：使用安装向导生成配置
+    # docker-compose run --rm znp install --output /etc/znp/znp.yaml
+    # 后续运行：正常启动服务
+    command: ["serve", "--config", "/etc/znp/znp.yaml", "--migrate-to", "latest"]
